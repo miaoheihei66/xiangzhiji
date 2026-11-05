@@ -54,14 +54,32 @@
     padding: 26px 12px 34px;
     display: grid; place-items: center; min-height: 280px;
   }
-  .card { position: relative; box-shadow: 0 12px 26px rgba(0,0,0,.55); background: #f5f3ec; }
-  .card.black { background: #121212; }
+  .table.light { background: radial-gradient(120% 90% at 50% 30%, #e6e3dc 0%, #b4b1a9 78%); border-color: #8f8c85; }
+  .card { position: relative; box-shadow: 0 12px 26px rgba(0,0,0,.55); }
+  .table.light .card { box-shadow: 0 10px 22px rgba(40,34,26,.45), 0 2px 5px rgba(40,34,26,.3); }
+  #frameCv { position: absolute; left: 0; top: 0; display: block; pointer-events: none; }
   #gl { position: absolute; display: block; touch-action: none; cursor: grab; background: #222; }
+  .win { position: absolute; pointer-events: none; box-shadow: inset 1.5px 1.5px 2px rgba(0,0,0,.38); }
+  .win.grid {
+    background-image:
+      linear-gradient(to right, transparent calc(33.333% - .5px), rgba(255,255,255,.55) calc(33.333% - .5px), rgba(255,255,255,.55) calc(33.333% + .5px), transparent calc(33.333% + .5px), transparent calc(66.667% - .5px), rgba(255,255,255,.55) calc(66.667% - .5px), rgba(255,255,255,.55) calc(66.667% + .5px), transparent calc(66.667% + .5px)),
+      linear-gradient(to bottom, transparent calc(33.333% - .5px), rgba(255,255,255,.55) calc(33.333% - .5px), rgba(255,255,255,.55) calc(33.333% + .5px), transparent calc(33.333% + .5px), transparent calc(66.667% - .5px), rgba(255,255,255,.55) calc(66.667% - .5px), rgba(255,255,255,.55) calc(66.667% + .5px), transparent calc(66.667% + .5px));
+  }
   .card .cap { position: absolute; left: 0; right: 0; text-align: center; font-family: var(--font-hand); color: rgba(28,32,58,.88); white-space: nowrap; overflow: hidden; transform: rotate(-.7deg); pointer-events: none; }
-  .card.black .cap { color: rgba(240,238,230,.9); }
+  .card.dark .cap { color: rgba(240,238,230,.9); }
   .card.hand-marker .cap { font-family: "Zhi Mang Xing", "Kaiti SC", "STKaiti", cursive; }
-  .hint { position: absolute; left: 14px; bottom: 9px; font-size: 11px; color: var(--muted); }
-  .badge { position: absolute; right: 12px; top: 8px; font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
+  .tool { position: absolute; left: 12px; top: 6px; width: 30px; height: 24px; display: grid; place-items: center; border-radius: 8px; border: 1px solid var(--line); background: var(--panel-2); color: var(--muted); cursor: pointer; padding: 0; }
+  .tool[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  .lenses { position: absolute; left: 50%; bottom: 5px; transform: translateX(-50%); display: flex; gap: 6px; }
+  .lenses button { appearance: none; min-width: 38px; height: 24px; padding: 0 9px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); background: rgba(18,18,20,.78); color: #e8e7e2; font-family: var(--font-data); font-size: 11.5px; cursor: pointer; }
+  .lenses button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+  .icon-btn svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  #flashBtn[aria-pressed="true"] svg path { fill: currentColor; }
+  .seg.scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
+  .seg.scroll::-webkit-scrollbar { display: none; }
+  .seg.scroll button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 13px; height: 13px; border-radius: 50%; border: 1px solid rgba(255,255,255,.35); display: inline-block; }
+  .badge { position: absolute; right: 12px; top: 6px; font-size: 11px; padding: 3px 9px; border-radius: 999px; background: var(--panel-2); color: var(--muted); border: 1px solid var(--line); }
   .badge.live { color: #9be3a5; }
   .badge.live::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #5fd06f; margin-right: 6px; vertical-align: 1px; }
   .flashpop { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 40; transition: opacity .35s ease-out; }
@@ -98,7 +116,7 @@
   .fmt .rt { font-family: var(--font-data); font-size: 10px; color: var(--muted); }
 
   .controls { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 4px 14px; display: flex; flex-direction: column; }
-  .row { display: grid; grid-template-columns: 58px 1fr auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .row { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .row:last-child { border-bottom: 0; }
   .row label, .row .lb { font-size: 13px; color: var(--muted); letter-spacing: .04em; }
   .row .val { font-family: var(--font-data); font-size: 12px; min-width: 40px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -140,25 +158,30 @@
 
   <div class="table" id="table">
     <div class="card" id="card">
+      <canvas id="frameCv"></canvas>
       <canvas id="gl" aria-label="取景器，拖动移动画面，双指缩放"></canvas>
+      <div class="win" id="win"></div>
       <div class="cap" id="capPreview"></div>
     </div>
+    <button class="tool" id="gridBtn" type="button" aria-label="网格" aria-pressed="true" title="网格">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M9.2 3.5v17M14.8 3.5v17M3.5 9.2h17M3.5 14.8h17"/></svg>
+    </button>
     <span class="badge" id="badge">示例画面</span>
-    <span class="hint" id="hint">拖动移动画面，双指缩放</span>
+    <div class="lenses" id="lenses" role="group" aria-label="镜头" hidden></div>
   </div>
 
   <p class="msg" id="msg" hidden></p>
 
   <div class="shutter-row">
     <div class="side">
-      <label class="icon-btn" for="file">相册</label>
+      <label class="icon-btn" for="file" aria-label="从相册选照片" title="相册"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-9 9"/></svg></label>
       <input id="file" type="file" accept="image/*" hidden>
-      <button class="icon-btn" id="flip" type="button" aria-label="切换前后摄像头" hidden>翻转</button>
+      <button class="icon-btn" id="flip" type="button" aria-label="切换前后摄像头" title="翻转" hidden><svg viewBox="0 0 24 24"><path d="M19.5 10.5A7.8 7.8 0 0 0 5.3 7.2"/><path d="M4.5 3.8v3.7h3.7"/><path d="M4.5 13.5a7.8 7.8 0 0 0 14.2 3.3"/><path d="M19.5 20.2v-3.7h-3.7"/><rect x="8.6" y="10" width="6.8" height="4.6" rx="1"/></svg></button>
     </div>
     <button class="shutter" id="shutter" type="button" aria-label="拍摄"><span></span></button>
     <div class="side right">
-      <button class="icon-btn" id="flashBtn" type="button" aria-pressed="false">闪光</button>
-      <button class="icon-btn" id="camBtn" type="button">相机</button>
+      <button class="icon-btn" id="flashBtn" type="button" aria-pressed="false" aria-label="闪光灯" title="闪光"><svg viewBox="0 0 24 24"><path d="M13 2.5 4.8 13.4H11L10.2 21.5l8.3-11h-6.3z"/></svg></button>
+      <button class="icon-btn" id="camBtn" type="button" aria-label="打开相机" title="相机"></button>
     </div>
   </div>
   <div class="shutter-label" id="shutterLabel">冲印这张</div>
@@ -178,18 +201,15 @@
     </div>
     <div class="row">
       <span class="lb">边框</span>
-      <div class="seg" id="frameSeg">
-        <button type="button" data-v="white" aria-pressed="true">白</button>
-        <button type="button" data-v="black" aria-pressed="false">黑</button>
-      </div>
+      <div class="seg scroll" id="frameSeg"></div>
       <span></span>
     </div>
     <div class="row">
       <label for="caption">手写字</label>
-      <input id="caption" type="text" maxlength="24" placeholder="写在下白边上" value="夏天的尾巴">
+      <input id="caption" type="text" maxlength="24" placeholder="想写点什么就填在这里，不填就没有">
       <span></span>
     </div>
-    <div class="row">
+    <div class="row" id="fontRow" hidden>
       <span class="lb">字体</span>
       <div class="seg" id="fontSeg">
         <button type="button" data-v="Long Cang" aria-pressed="true">钢笔</button>
@@ -200,7 +220,7 @@
   </div>
 
   <p class="note" id="fmtNote"></p>
-  <p class="note">每次按快门，色温、曝光和边缘显影痕迹都会随机偏一点，和真相纸一样，没有两张完全相同。</p>
+  <p class="note">取景框里拖动可以移动画面，双指可以放大。每次按快门，色温、曝光和边缘显影痕迹都会随机偏一点，和真相纸一样，没有两张完全相同。</p>
 </div>
 
 <div class="flashpop" id="flashpop"></div>
@@ -226,13 +246,13 @@
   // ---------- formats (mm). Image area starts `top` from the top edge and `side` from the left. ----------
   const FORMATS = [
     { id: 'spectra', name: 'Spectra', w: 103, h: 101, iw: 90, ih: 73, top: 6, side: 6.5, corner: 1.2, film: 'spectra',
-      note: 'Polaroid Spectra（Image）：整张 103 × 101 mm，画面 90 × 73 mm，横版，比例约 1.23 : 1。色调：暗部偏粉、亮部偏青黄，整体发灰发柔，像蒙了一层雾。' },
+      note: 'Polaroid Spectra（Image）：整张 103 × 101 mm，画面 90 × 73 mm，横版，比例约 1.23 : 1。和 600 同一类相纸化学，色调相同，只是更柔、更灰一点。' },
     { id: 'itype', name: 'i-Type', w: 88.47, h: 107.52, iw: 78.94, ih: 76.8, top: 5, side: 4.765, corner: 1.2, film: 'polaroid',
-      note: 'Polaroid i-Type 和 600：整张 88.5 × 107.5 mm，画面 79 × 77 mm。色调：整体偏暖，亮部偏粉、暗部偏绿，宽容度很窄，亮处容易过曝，暗处容易死黑但又发灰，画面很柔，几乎看不到颗粒。' },
+      note: 'Polaroid i-Type 和 600：整张 88.5 × 107.5 mm，画面 79 × 77 mm。色调（按 60 张真实扫描片测出来的）：黑色抬得很高、发青，白色压暗、偏奶黄，颜色只有手机原片的七成左右，红色往洋红偏，绿色往青偏。画面很柔，几乎看不到颗粒。' },
     { id: 'go', name: 'Go', w: 53.9, h: 66.6, iw: 46, ih: 47, top: 4, side: 3.95, corner: 1, film: 'polaroid',
       note: 'Polaroid Go：整张 53.9 × 66.6 mm，画面 46 × 47 mm。用的是和 i-Type 同一类相纸化学，色调相同，只是更小。' },
     { id: 'mini', name: 'mini', w: 54, h: 86, iw: 46, ih: 62, top: 5, side: 4, corner: 3, film: 'instax',
-      note: 'Instax mini：整张 54 × 86 mm，画面 46 × 62 mm。色调：比宝丽来冷、颜色更准更艳，对比强，细节一般，开闪光会很“冲”。' },
+      note: 'Instax mini：整张 54 × 86 mm，画面 46 × 62 mm。色调（按 70 张真实扫描片测出来的）：比宝丽来对比强、黑得更实，暗部偏红棕，亮部偏冷，颜色比手机原片素两成，红色往洋红偏。开闪光会很“冲”。' },
     { id: 'square', name: 'SQUARE', w: 72, h: 86, iw: 62, ih: 62, top: 5, side: 5, corner: 3, film: 'instax',
       note: 'Instax SQUARE：整张 72 × 86 mm，画面 62 × 62 mm，正方形，色调和 mini 一样。' },
     { id: 'wide', name: 'WIDE', w: 108, h: 86, iw: 99, ih: 62, top: 5, side: 4.5, corner: 3, film: 'instax',
@@ -240,26 +260,51 @@
   ];
 
   // ---------- film looks ----------
-  // blur: softness as a fraction of image width. clarity < 0 flattens local contrast.
-  // curve: S-curve strength (1 = smoothstep, 2 = twice). lift/roll: hazy black point and dim white point.
-  // gb: how much greens and blues are muted. shadow/high: colour added in dark and bright tones.
-  // bloom: highlight glow and its colour. edge: uneven chemistry along the image window.
-  // develop: colour of an undeveloped print.
+  // Colour values were fitted, not guessed: about 60 Polaroid and 70 Instax scans from Flickr were measured
+  // (black and white point per channel, cast of near-neutral tones in shadows, mids and highlights, chroma, hue of reds,
+  // greens and blues), then these numbers were solved so that ordinary phone photos run through the shader land on
+  // the same statistics. Blue chroma boost was cut back by hand because the raw fit made blue clothes look purple.
+  //   expo, warm, tint: exposure and white balance before everything else.
+  //   sat: overall chroma. hue: degrees to turn reds, greens, blues. hueSat: extra chroma for reds, greens, blues.
+  //   mid: Oklab a and b nudge in the midtones (x0.01). curve: S-curve strength (1 = smoothstep).
+  //   blk, wht: black and white point of each channel after the curve. Polaroid: cyan blacks, warm whites.
+  //   Instax: red-brown blacks, slightly cool whites.
+  //   blur, clarity (< 0 flattens local contrast), bloom, vig, edge (uneven chemistry at the window), grain.
+  //   develop: colour of an undeveloped print.
   const FILMS = {
-    spectra:  { expo: 1.06, warm: 0.015, blur: 0.0021, clarity: -0.30, curve: 0.65, lift: 0.125, roll: 0.905, sat: 0.86, gb: 0.50,
-                shadow: [0.055, -0.012, 0.040], high: [0.004, 0.030, -0.048], bloom: 0.30, bloomCol: [1.0, 0.86, 0.88],
-                vig: 0.30, edge: 0.65, edgeCol: [0.80, 0.82, 0.90], grain: 0.006, develop: '#a9b4b0' },
-    polaroid: { expo: 1.05, warm: 0.030, blur: 0.0022, clarity: -0.28, curve: 0.95, lift: 0.095, roll: 0.915, sat: 0.92, gb: 0.55,
-                shadow: [-0.020, 0.032, 0.012], high: [0.040, -0.008, 0.020], bloom: 0.34, bloomCol: [1.0, 0.84, 0.86],
-                vig: 0.32, edge: 0.75, edgeCol: [0.78, 0.80, 0.86], grain: 0.005, develop: '#b4bcb4' },
-    instax:   { expo: 1.03, warm: -0.015, blur: 0.0014, clarity: -0.12, curve: 1.10, lift: 0.045, roll: 0.970, sat: 1.07, gb: 0.12,
-                shadow: [-0.025, 0.004, 0.032], high: [0.000, 0.010, 0.004], bloom: 0.16, bloomCol: [1.0, 1.0, 0.98],
+    polaroid: { expo: 1.005, warm: 0.002, tint: 0, sat: 0.85, hue: [-11.9, 14.9, 8.5], hueSat: [-0.03, 0.07, 0.25], mid: [0.5, -0.46],
+                curve: 0.44, blk: [0.072, 0.108, 0.117], wht: [0.956, 0.901, 0.879],
+                blur: 0.0022, clarity: -0.28, bloom: 0.30, bloomCol: [1.0, 0.88, 0.84],
+                vig: 0.30, edge: 0.75, edgeCol: [0.78, 0.80, 0.86], grain: 0.005, develop: '#b4bcb4' },
+    instax:   { expo: 1.09, warm: -0.048, tint: -0.003, sat: 0.88, hue: [-24.3, 8.0, 15.5], hueSat: [-0.03, -0.12, 0.30], mid: [0.01, -1.65],
+                curve: 1.15, blk: [0.130, 0.076, 0.054], wht: [0.885, 0.898, 0.886],
+                blur: 0.0014, clarity: -0.12, bloom: 0.16, bloomCol: [1.0, 1.0, 0.98],
                 vig: 0.18, edge: 0.0, edgeCol: [1, 1, 1], grain: 0.011, develop: '#1e2024' }
   };
+  // Spectra uses the same Polaroid chemistry; a little softer and flatter.
+  FILMS.spectra = Object.assign({}, FILMS.polaroid, { sat: 0.82, curve: 0.38, blur: 0.0021, clarity: -0.30, edge: 0.65, edgeCol: [0.80, 0.82, 0.90], grain: 0.006, develop: '#a9b4b0' });
 
+  // ---------- frame colours. dark: light ink and a light table so the card stands out ----------
+  const FRAMES = [
+    { id: 'white',   name: '白',   c: '#f4f2eb' },
+    { id: 'black',   name: '黑',   c: '#1c1c1e', dark: true },
+    { id: 'cream',   name: '奶油', c: '#ede2c9' },
+    { id: 'pink',    name: '樱粉', c: '#f0c3cc' },
+    { id: 'blue',    name: '天蓝', c: '#a7cae5' },
+    { id: 'mint',    name: '薄荷', c: '#b6dbc5' },
+    { id: 'yellow',  name: '柠檬', c: '#f1d470' },
+    { id: 'red',     name: '砖红', c: '#b5422f', dark: true },
+    { id: 'navy',    name: '藏青', c: '#233150', dark: true },
+    { id: 'silver',  name: '银',   c: '#c4c7cc', metal: true },
+    { id: 'rainbow', name: '彩虹', c: '#f3d3b0', rainbow: true }
+  ];
+  const RAINBOW = ['#f5b5b8', '#f7d6a4', '#f2ec9f', '#bde4bd', '#b1d2ef', '#d2c0ed'];
+  const frameOf = () => FRAMES.find(x => x.id === state.frame) || FRAMES[0];
+
+  const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
   const state = {
-    fmt: FORMATS[0], zoom: 1, panX: 0, panY: 0, strength: 1, frame: 'white', caption: '夏天的尾巴', font: 'Long Cang',
-    flash: false, facing: 'environment', live: false
+    fmt: FORMATS[0], zoom: 1, panX: 0, panY: 0, strength: 1, frame: store.get('frame') || 'white', caption: '', font: 'Long Cang',
+    flash: false, facing: 'environment', live: false, grid: store.get('grid') !== '0'
   };
 
   // ---------- WebGL ----------
@@ -273,8 +318,8 @@ precision highp float;
 varying vec2 v;
 uniform sampler2D T;
 uniform vec4 crop; uniform float mirror, aspect;
-uniform float expo, warm, blur, clarity, curve, lift, roll, sat, gb, bloom, vig, edge, grain, flash, strength, seed;
-uniform vec3 shadowT, highT, bloomCol, edgeCol;
+uniform float expo, warm, tint, blur, clarity, curve, sat, bloom, vig, edge, grain, flash, strength, seed, midA, midB;
+uniform vec3 hueShift, hueSat, blk, wht, bloomCol, edgeCol;
 const vec3 LW = vec3(0.299, 0.587, 0.114);
 vec2 S(vec2 uv){ uv = clamp(uv, 0.0, 1.0); if (mirror > 0.5) uv.x = 1.0 - uv.x; return crop.xy + uv * crop.zw; }
 vec3 tap(vec2 uv){ return texture2D(T, S(uv)).rgb; }
@@ -290,6 +335,20 @@ vec3 blurAt(vec2 uv, float r){
   c += tap(uv + k*vec2( 0.7,-0.7))*0.1; c += tap(uv + k*vec2(-0.7,-0.7))*0.1;
   return c;
 }
+// sRGB <-> linear and Oklab, so hue and chroma can be moved without touching brightness
+vec3 s2l(vec3 c){ return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+vec3 l2s(vec3 c){ c = clamp(c, 0.0, 1.0); return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+vec3 toLab(vec3 c){
+  vec3 m = vec3(dot(vec3(0.4122214708, 0.5363325363, 0.0514459929), c), dot(vec3(0.2119034982, 0.6806995451, 0.1073969566), c), dot(vec3(0.0883024619, 0.2817188376, 0.6299787005), c));
+  m = pow(max(m, 0.0), vec3(1.0 / 3.0));
+  return vec3(dot(vec3(0.2104542553, 0.7936177850, -0.0040720468), m), dot(vec3(1.9779984951, -2.4285922050, 0.4505937099), m), dot(vec3(0.0259040371, 0.7827717662, -0.8086757660), m));
+}
+vec3 fromLab(vec3 c){
+  vec3 m = vec3(c.x + 0.3963377774 * c.y + 0.2158037573 * c.z, c.x - 0.1055613458 * c.y - 0.0638541728 * c.z, c.x - 0.0894841775 * c.y - 1.2914855480 * c.z);
+  m = m * m * m;
+  return vec3(dot(vec3(4.0767416621, -3.3077115913, 0.2309699292), m), dot(vec3(-1.2684380046, 2.6097574011, -0.3413193965), m), dot(vec3(-0.0041960863, -0.7034186147, 1.7076147010), m));
+}
+float bump(float h, float c, float w){ float d = atan(sin(h - c), cos(h - c)); float x = clamp(1.0 - abs(d) / w, 0.0, 1.0); return x * x * (3.0 - 2.0 * x); }
 vec3 sCurve(vec3 c, float k){
   vec3 s1 = c*c*(3.0-2.0*c);
   c = mix(c, s1, min(k, 1.0));
@@ -303,22 +362,20 @@ void main(){
   vec3 wide = blurAt(uv, blur * 7.0);
   vec3 c = soft + (soft - wide) * clarity;                 // clarity < 0 = flatter local contrast
   c *= expo * (1.0 + flash * 0.10);
-  c.r *= 1.0 + warm; c.b *= 1.0 - warm * 1.2;
-  // mute greens and blues, nudge greens toward yellow
-  float gness = clamp((c.g - max(c.r, c.b)) * 4.0, 0.0, 1.0);
-  float bness = clamp((c.b - max(c.r, c.g)) * 3.0, 0.0, 1.0);
-  float l = dot(c, LW);
-  c = mix(c, vec3(l), (gness * 0.75 + bness * 0.55) * gb);
-  c.r += gness * 0.05 * gb;
-  l = dot(c, LW);
-  c = mix(vec3(l), c, sat);
-  // narrow latitude: S-curve, then hazy blacks and dim whites
-  c = clamp(c, 0.0, 1.0);
+  c *= vec3(1.0 + warm, 1.0 + tint, 1.0 - warm);
+  // colour: in Oklab, mute chroma and turn reds, greens and blues separately (values fitted to real prints)
+  vec3 o = toLab(s2l(clamp(c, 0.0, 1.0)));
+  float C = length(o.yz), h = atan(o.z, o.y);
+  float wr = bump(h, 0.5236, 0.9599), wg = bump(h, 2.4435, 1.0472), wb = bump(h, 4.5728, 0.9599);
+  h += hueShift.x * wr + hueShift.y * wg + hueShift.z * wb;
+  C *= sat * max(0.0, 1.0 + hueSat.x * wr + hueSat.y * wg + hueSat.z * wb);
+  float mid = clamp(1.0 - abs(o.x - 0.6) / 0.35, 0.0, 1.0);
+  o.yz = C * vec2(cos(h), sin(h)) + vec2(midA, midB) * 0.01 * mid;
+  c = l2s(fromLab(o));
+  // narrow latitude: S-curve, then each channel gets its own black and white point (cyan blacks, warm whites and so on)
   c = sCurve(c, curve + flash * 0.35);
-  c = lift + c * (roll - lift);
-  l = dot(c, LW);
-  float sw = 1.0 - smoothstep(0.05, 0.6, l), hw = smoothstep(0.45, 0.95, l);
-  c += shadowT * sw + highT * hw;
+  c = blk + c * (wht - blk);
+  float l = dot(c, LW);
   // highlight glow
   float wl = dot(wide, LW);
   c += bloomCol * max(wl - 0.62, 0.0) * bloom * 1.6;
@@ -344,7 +401,7 @@ void main(){
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 0,1, 1,0, 1,1]), gl.STATIC_DRAW);
   const ap = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
-  const U = {}; ['T','crop','mirror','aspect','expo','warm','blur','clarity','curve','lift','roll','sat','gb','bloom','vig','edge','grain','flash','strength','seed','shadowT','highT','bloomCol','edgeCol']
+  const U = {}; ['T','crop','mirror','aspect','expo','warm','tint','blur','clarity','curve','sat','midA','midB','bloom','vig','edge','grain','flash','strength','seed','hueShift','hueSat','blk','wht','bloomCol','edgeCol']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -380,11 +437,14 @@ void main(){
     gl.uniform1f(U.aspect, f.iw / f.ih);
     gl.uniform1f(U.expo, F.expo * (o.expo || 1));
     gl.uniform1f(U.warm, F.warm + (o.warm || 0));
-    gl.uniform1f(U.blur, F.blur); gl.uniform1f(U.clarity, F.clarity); gl.uniform1f(U.curve, F.curve);
-    gl.uniform1f(U.lift, F.lift); gl.uniform1f(U.roll, F.roll); gl.uniform1f(U.sat, F.sat); gl.uniform1f(U.gb, F.gb);
+    gl.uniform1f(U.tint, F.tint);
+    gl.uniform1f(U.blur, F.blur); gl.uniform1f(U.clarity, F.clarity); gl.uniform1f(U.curve, F.curve); gl.uniform1f(U.sat, F.sat);
+    gl.uniform1f(U.midA, F.mid[0]); gl.uniform1f(U.midB, F.mid[1]);
+    gl.uniform3fv(U.hueShift, F.hue.map(d => d * Math.PI / 180)); gl.uniform3fv(U.hueSat, F.hueSat);
+    gl.uniform3fv(U.blk, F.blk); gl.uniform3fv(U.wht, F.wht);
     gl.uniform1f(U.bloom, F.bloom); gl.uniform1f(U.vig, F.vig); gl.uniform1f(U.edge, F.edge); gl.uniform1f(U.grain, F.grain);
     gl.uniform1f(U.flash, state.flash ? 1 : 0); gl.uniform1f(U.strength, state.strength); gl.uniform1f(U.seed, o.seed || 0.37);
-    gl.uniform3fv(U.shadowT, F.shadow); gl.uniform3fv(U.highT, F.high); gl.uniform3fv(U.bloomCol, F.bloomCol); gl.uniform3fv(U.edgeCol, F.edgeCol);
+    gl.uniform3fv(U.bloomCol, F.bloomCol); gl.uniform3fv(U.edgeCol, F.edgeCol);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
   }
 
@@ -398,7 +458,9 @@ void main(){
     card.style.width = (f.w * k) + 'px'; card.style.height = (f.h * k) + 'px';
     card.style.borderRadius = (f.corner * k * 0.6) + 'px';
     viewW = f.iw * k; viewH = f.ih * k;
-    Object.assign(glc.style, { left: (f.side * k) + 'px', top: (f.top * k) + 'px', width: viewW + 'px', height: viewH + 'px' });
+    const box = { left: (f.side * k) + 'px', top: (f.top * k) + 'px', width: viewW + 'px', height: viewH + 'px' };
+    Object.assign(glc.style, box); Object.assign($('win').style, box);
+    paintPreviewFrame();
     const bottom = f.h - f.top - f.ih, cap = $('capPreview');
     cap.style.top = ((f.top + f.ih) * k) + 'px'; cap.style.height = (bottom * k) + 'px';
     cap.style.lineHeight = (bottom * k * 1.04) + 'px';
@@ -431,31 +493,53 @@ void main(){
     document.querySelectorAll('.fmt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.id === f.id)));
     $('readout').innerHTML = '<b>' + f.name + '</b> 画面 ' + Math.round(f.iw) + ' × ' + Math.round(f.ih) + ' mm<br>' + ratioText(f);
     $('fmtNote').textContent = f.note;
-    $('card').classList.toggle('black', state.frame === 'black');
+    const fr = frameOf();
+    $('card').classList.toggle('dark', !!fr.dark);
+    $('table').classList.toggle('light', !!fr.dark);
     $('card').classList.toggle('hand-marker', state.font === 'Zhi Mang Xing');
     $('capPreview').textContent = state.caption;
-    const badge = $('badge');
-    badge.className = 'badge' + (state.live ? ' live' : '');
-    badge.textContent = state.live ? '取景中' : (isSample ? '示例画面' : '已选照片');
+    $('fontRow').hidden = !state.caption.trim();
+    document.querySelectorAll('.fmt .thumb').forEach(t => t.style.background = fr.c);
+    $('frameSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === fr.id)));
+    $('win').classList.toggle('grid', state.grid);
+    $('gridBtn').setAttribute('aria-pressed', String(state.grid));
+    updateBadge();
     $('shutterLabel').textContent = state.live ? '拍摄' : '冲印这张';
-    $('camBtn').textContent = state.live ? '关相机' : '相机';
+    $('camBtn').innerHTML = state.live ? ICON_CAM_OFF : ICON_CAM;
+    $('camBtn').setAttribute('aria-label', state.live ? '关掉相机' : '打开相机');
     $('flip').hidden = !state.live;
+    $('lenses').hidden = !state.live || $('lenses').children.length < 2;
     $('flashBtn').setAttribute('aria-pressed', String(state.flash));
     dirty = true;
+  }
+  const ICON_CAM = '<svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.6-2.2h6.8L17 7.5h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.2" r="3.6"/></svg>';
+  const ICON_CAM_OFF = '<svg viewBox="0 0 24 24"><path d="M4 7.5h3l1.6-2.2h6.8L17 7.5h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.2" r="3.6"/><path d="M3 3l18 18"/></svg>';
+  function updateBadge() {
+    const badge = $('badge');
+    badge.className = 'badge' + (state.live ? ' live' : '');
+    if (!state.live) { badge.textContent = isSample ? '示例画面' : '已选照片'; return; }
+    badge.textContent = lens.name + (state.zoom > 1.005 ? ' · 数码 ' + state.zoom.toFixed(1) + '×' : '');
   }
   function showMsg(t) { const m = $('msg'); m.textContent = t; m.hidden = !t; }
 
   // ---------- camera ----------
-  async function startCamera() {
+  async function startCamera(deviceId) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       showMsg('这里打不开摄像头。把相纸机放到你自己的网站上（https 开头的地址），用 Safari 打开就能实时取景。现在可以先点“相册”选照片。');
       return;
     }
     stopCamera();
     try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: state.facing, width: { ideal: 1920 }, height: { ideal: 1440 } } });
+      const v = deviceId ? { deviceId: { exact: deviceId } } : { facingMode: state.facing };
+      v.width = { ideal: 1920 }; v.height = { ideal: 1440 };
+      stream = await navigator.mediaDevices.getUserMedia({ audio: false, video: v });
+      const track = stream.getVideoTracks()[0], st = (track.getSettings && track.getSettings()) || {};
+      lens = Object.assign({ id: st.deviceId || deviceId || '' }, classify(track.label));
+      if (lens.kind === 'front' || st.facingMode === 'user') state.facing = 'user';
+      else if (lens.kind !== 'other' || st.facingMode) state.facing = 'environment';
       video.srcObject = stream; await video.play();
-      state.live = true; state.panX = state.panY = 0; showMsg(''); sync();
+      state.live = true; state.panX = state.panY = 0; setZoom(1); showMsg('');
+      await refreshLenses(); sync();
     } catch (e) {
       state.live = false; sync();
       if (e && e.name === 'NotAllowedError') showMsg('摄像头权限被拒绝了。在 iPhone 设置里找到 Safari，把“相机”改成“允许”，再回来点“相机”。在 Claude 里打开时摄像头是用不了的，要放到自己的网站上。');
@@ -464,8 +548,40 @@ void main(){
   }
   function stopCamera() { if (stream) stream.getTracks().forEach(t => t.stop()); stream = null; state.live = false; }
 
+  // ---------- lenses: read the camera's own name to tell 0.5x, 1x and telephoto apart ----------
+  let lens = { id: '', kind: 'other', name: '摄像头', short: '', factor: 0 };
+  let lensList = [];
+  function classify(label) {
+    const s = (label || '').toLowerCase();
+    if (/front|前置|facetime/.test(s)) return { kind: 'front', name: '前置镜头', short: '前置', factor: 1 };
+    if (/dual|triple|双|三/.test(s)) return { kind: 'multi', name: '1× 主摄（自动切换）', short: '自动', factor: 1 };
+    if (/ultra|超广角/.test(s)) return { kind: 'ultra', name: '0.5× 超广角', short: '0.5×', factor: 0.5 };
+    if (/tele|长焦/.test(s)) return { kind: 'tele', name: '长焦镜头', short: '长焦', factor: 0 };
+    if (/back|后置|rear|facing back/.test(s)) return { kind: 'wide', name: '1× 主摄', short: '1×', factor: 1 };
+    return { kind: 'other', name: label || '摄像头', short: label ? label.slice(0, 6) : '镜头', factor: 0 };
+  }
+  async function refreshLenses() {
+    try {
+      const ds = (await navigator.mediaDevices.enumerateDevices()).filter(d => d.kind === 'videoinput' && d.label);
+      const order = { ultra: 0, wide: 1, tele: 2, other: 3 };
+      lensList = ds.map(d => Object.assign({ id: d.deviceId }, classify(d.label))).filter(l => l.kind in order)
+        .sort((a, b) => order[a.kind] - order[b.kind]);
+      const seen = {};
+      lensList.forEach(l => { seen[l.short] = (seen[l.short] || 0) + 1; if (seen[l.short] > 1) l.short += seen[l.short]; });
+    } catch (e) { lensList = []; }
+    const box = $('lenses'); box.innerHTML = '';
+    if (lens.kind === 'front') return;
+    lensList.forEach(l => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = l.short; b.title = l.name;
+      b.setAttribute('aria-pressed', String(l.id === lens.id || (lens.kind === 'multi' && l.kind === 'wide')));
+      b.addEventListener('click', () => { if (l.id !== lens.id) startCamera(l.id); });
+      box.appendChild(b);
+    });
+  }
+
   $('camBtn').addEventListener('click', () => { if (state.live) { stopCamera(); sync(); } else startCamera(); });
   $('flip').addEventListener('click', () => { state.facing = state.facing === 'user' ? 'environment' : 'user'; startCamera(); });
+  $('gridBtn').addEventListener('click', () => { state.grid = !state.grid; store.set('grid', state.grid ? '1' : '0'); sync(); });
   $('flashBtn').addEventListener('click', () => { state.flash = !state.flash; sync(); });
 
   $('file').addEventListener('change', e => {
@@ -494,7 +610,7 @@ void main(){
   });
   const up = e => { pts.delete(e.pointerId); if (pts.size < 2) pinch0 = 0; };
   glc.addEventListener('pointerup', up); glc.addEventListener('pointercancel', up);
-  function setZoom(z) { state.zoom = Math.min(3, Math.max(1, z)); $('zoom').value = state.zoom; $('zoomVal').textContent = state.zoom.toFixed(2) + '×'; dirty = true; }
+  function setZoom(z) { state.zoom = Math.min(3, Math.max(1, z)); $('zoom').value = state.zoom; $('zoomVal').textContent = state.zoom.toFixed(2) + '×'; updateBadge(); dirty = true; }
 
   // ---------- controls ----------
   $('zoom').addEventListener('input', e => setZoom(+e.target.value));
@@ -504,12 +620,70 @@ void main(){
     $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state[key] = b.dataset.v;
       $(id).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); sync(); });
   }
-  seg('frameSeg', 'frame'); seg('fontSeg', 'font');
+  seg('fontSeg', 'font');
+  FRAMES.forEach(fr => {
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.v = fr.id;
+    const bg = fr.rainbow ? 'linear-gradient(135deg,' + RAINBOW.join(',') + ')' : fr.metal ? 'linear-gradient(135deg,#a9adb3,#eceef1,#b4b8be)' : fr.c;
+    b.innerHTML = '<i class="sw" style="background:' + bg + '"></i>' + fr.name;
+    b.addEventListener('click', () => { state.frame = fr.id; store.set('frame', fr.id); sync(); paintPreviewFrame(); });
+    $('frameSeg').appendChild(b);
+  });
 
   // ---------- shoot & develop ----------
   const paperTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const d = g.createImageData(256, 256);
     for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (Math.random() - .5) * 60; d.data[i] = d.data[i+1] = d.data[i+2] = v; d.data[i+3] = 255; } g.putImageData(d, 0, 0); return c; })();
   function rr(c, x, y, w, h, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+  // big soft blotches: the uneven body of real card stock
+  const blotchTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 36; const g = c.getContext('2d'); const d = g.createImageData(36, 36);
+    for (let i = 0; i < d.data.length; i += 4) { const v = 128 + (Math.random() - .5) * 80; d.data[i] = d.data[i+1] = d.data[i+2] = v; d.data[i+3] = 255; } g.putImageData(d, 0, 0); return c; })();
+
+  // Paint the card: base colour, paper body, fine tooth, satin sheen, lit cut edge, raised lip round the image window.
+  // K = canvas pixels per millimetre.
+  function paintFrame(g, W, H, f, fr, K) {
+    const r = f.corner * K * 0.6;
+    g.clearRect(0, 0, W, H);
+    g.save(); rr(g, 0, 0, W, H, r); g.clip();
+    if (fr.rainbow) { const lg = g.createLinearGradient(0, 0, W, H); RAINBOW.forEach((col, i) => lg.addColorStop(i / (RAINBOW.length - 1), col)); g.fillStyle = lg; }
+    else if (fr.metal) { const lg = g.createLinearGradient(0, 0, W * 0.8, H); [[0, '#a7abb1'], [.2, '#e8eaed'], [.42, '#b5b9bf'], [.66, '#e1e4e8'], [1, '#9fa3a9']].forEach(([s, col]) => lg.addColorStop(s, col)); g.fillStyle = lg; }
+    else g.fillStyle = fr.c;
+    g.fillRect(0, 0, W, H);
+    g.imageSmoothingEnabled = true;
+    g.globalCompositeOperation = 'soft-light';
+    g.globalAlpha = fr.dark ? 0.10 : 0.14; g.drawImage(blotchTex, 0, 0, W, H);
+    g.globalAlpha = fr.dark ? 0.30 : 0.20; g.fillStyle = g.createPattern(paperTex, 'repeat'); g.fillRect(0, 0, W, H);
+    g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    if (fr.metal) { for (let y = 0; y < H; y += Math.max(1, K * 0.08)) { g.fillStyle = 'rgba(255,255,255,' + (Math.random() * 0.07).toFixed(3) + ')'; g.fillRect(0, y, W, Math.max(1, K * 0.04)); } }
+    // satin sheen: a soft band of light from the upper left, a touch of shade toward the lower right
+    const sh = g.createLinearGradient(0, 0, W, H);
+    sh.addColorStop(0, 'rgba(255,255,255,' + (fr.dark ? 0.11 : 0.20) + ')');
+    sh.addColorStop(0.38, 'rgba(255,255,255,' + (fr.dark ? 0.04 : 0.05) + ')');
+    sh.addColorStop(0.62, 'rgba(0,0,0,0)');
+    sh.addColorStop(1, 'rgba(0,0,0,' + (fr.dark ? 0.28 : 0.07) + ')');
+    g.fillStyle = sh; g.fillRect(0, 0, W, H);
+    if (fr.dark) { const sp = g.createRadialGradient(W * 0.22, H * 0.12, 0, W * 0.22, H * 0.12, Math.max(W, H) * 0.7); sp.addColorStop(0, 'rgba(255,255,255,.07)'); sp.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = sp; g.fillRect(0, 0, W, H); }
+    // the die-cut edge catches light
+    g.lineWidth = Math.max(1, K * 0.28); g.strokeStyle = fr.dark ? 'rgba(255,255,255,.17)' : 'rgba(255,255,255,.55)';
+    rr(g, g.lineWidth / 2, g.lineWidth / 2, W - g.lineWidth, H - g.lineWidth, r); g.stroke();
+    // lip round the image window: lit on the lower and right side, shaded on the upper and left
+    const x = f.side * K, y = f.top * K, w = f.iw * K, h = f.ih * K, t = Math.max(1, K * 0.22);
+    g.fillStyle = fr.dark ? 'rgba(255,255,255,.13)' : 'rgba(255,255,255,.6)';
+    g.fillRect(x, y + h, w + t, t); g.fillRect(x + w, y, t, h);
+    g.fillStyle = fr.dark ? 'rgba(0,0,0,.45)' : 'rgba(70,60,50,.22)';
+    g.fillRect(x - t, y - t, w + t, t); g.fillRect(x - t, y, t, h);
+    g.restore();
+  }
+  // inner shadow the lip casts onto the picture
+  function paintWindowShade(g, x, y, w, h, K) {
+    const t = K * 0.9;
+    let lg = g.createLinearGradient(0, y, 0, y + t); lg.addColorStop(0, 'rgba(0,0,0,.42)'); lg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = lg; g.fillRect(x, y, w, t);
+    lg = g.createLinearGradient(x, 0, x + t, 0); lg.addColorStop(0, 'rgba(0,0,0,.32)'); lg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = lg; g.fillRect(x, y, t, h);
+  }
+  function paintPreviewFrame() {
+    const f = state.fmt, fc = $('frameCv'), dpr = Math.min(window.devicePixelRatio || 1, 2);
+    fc.width = Math.round(f.w * k * dpr); fc.height = Math.round(f.h * k * dpr);
+    fc.style.width = (f.w * k) + 'px'; fc.style.height = (f.h * k) + 'px';
+    paintFrame(fc.getContext('2d'), fc.width, fc.height, f, frameOf(), k * dpr);
+  }
 
   let lastFile = null;
   async function shoot() {
@@ -524,19 +698,10 @@ void main(){
     draw(iw, ih, { seed, warm, expo });
     const out = document.createElement('canvas'); out.width = W; out.height = H;
     const c = out.getContext('2d');
-    const white = state.frame === 'white';
-    rr(c, 0, 0, W, H, f.corner * K * 0.6); c.fillStyle = white ? '#f5f3ec' : '#131313'; c.fill();
-    c.save(); c.clip();
-    c.globalAlpha = white ? 0.05 : 0.07; c.globalCompositeOperation = white ? 'multiply' : 'screen';
-    c.fillStyle = c.createPattern(paperTex, 'repeat'); c.fillRect(0, 0, W, H);
-    c.globalAlpha = 1; c.globalCompositeOperation = 'source-over';
-    const sheen = c.createLinearGradient(0, 0, W, H);
-    sheen.addColorStop(0, white ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.04)'); sheen.addColorStop(1, white ? 'rgba(190,180,160,.12)' : 'rgba(0,0,0,.15)');
-    c.fillStyle = sheen; c.fillRect(0, 0, W, H);
-    c.restore();
+    const fr = frameOf();
+    paintFrame(c, W, H, f, fr, K);
     c.drawImage(glc, ix, iy, iw, ih);
-    c.strokeStyle = white ? 'rgba(60,50,40,.30)' : 'rgba(255,255,255,.08)'; c.lineWidth = 3;
-    c.strokeRect(ix + 1.5, iy + 1.5, iw - 3, ih - 3);
+    paintWindowShade(c, ix, iy, iw, ih, K);
     const text = state.caption.trim();
     if (text) {
       const bottom = f.h - f.top - f.ih; let size = Math.min(bottom * 0.42, 9) * K;
@@ -544,7 +709,7 @@ void main(){
       c.font = size + 'px ' + fam; const maxW = (f.w - f.side * 4) * K, tw = c.measureText(text).width;
       if (tw > maxW) { size *= maxW / tw; c.font = size + 'px ' + fam; }
       c.save(); c.translate(W / 2, (f.top + f.ih + bottom * 0.52) * K); c.rotate(-0.012);
-      c.fillStyle = white ? 'rgba(28,32,58,.88)' : 'rgba(240,238,230,.9)'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.fillStyle = fr.dark ? 'rgba(240,238,230,.9)' : 'rgba(28,32,58,.88)'; c.textAlign = 'center'; c.textBaseline = 'middle';
       c.fillText(text, 0, 0); c.restore();
     }
     layout(); // restore viewfinder size
