@@ -135,10 +135,15 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
     padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
   }
-  .print { position: relative; width: min(100%, 460px); max-height: 64vh; }
-  .print img { display: block; width: 100%; height: auto; max-height: 64vh; object-fit: contain; box-shadow: 0 14px 36px rgba(0,0,0,.6); -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
+  /* camera body with the exit slot; the print slides out from behind it */
+  .slotband { position: absolute; left: 0; right: 0; top: 0; height: calc(env(safe-area-inset-top, 0px) + 30px); background: #0c0c0e; z-index: 3; box-shadow: 0 6px 16px rgba(0,0,0,.65); }
+  .slotband i { position: absolute; left: 50%; bottom: 7px; transform: translateX(-50%); width: min(80%, 460px); height: 11px; border-radius: 7px; background: #000; box-shadow: inset 0 2px 4px rgba(0,0,0,.95), 0 1px 0 rgba(255,255,255,.09); }
+  .print { position: relative; z-index: 1; display: flex; justify-content: center; }
+  .tilt { position: relative; display: inline-block; touch-action: none; will-change: transform; }
+  .print img { display: block; box-shadow: 0 14px 30px rgba(0,0,0,.6); -webkit-touch-callout: default; -webkit-user-select: auto; user-select: auto; }
+  .glare { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(115deg, rgba(255,255,255,0) 35%, rgba(255,255,255,.28) 50%, rgba(255,255,255,0) 65%); background-size: 260% 260%; background-position: 50% 50%; mix-blend-mode: soft-light; }
   .develop { position: absolute; pointer-events: none; opacity: 1; }
-  .develop.go { opacity: 0; transition: opacity 5.5s cubic-bezier(.55,.05,.35,1); }
+  .develop.go { opacity: 0; transition: opacity 10s cubic-bezier(.45,0,.55,1); }
   .sheet p { margin: 0; font-size: 13px; color: var(--muted); text-align: center; max-width: 34em; line-height: 1.7; }
   .sheet .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: min(100%, 420px); }
   .btn { appearance: none; border: 1px solid var(--line); background: var(--panel); color: var(--fg); border-radius: 14px; padding: 14px 12px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
@@ -200,6 +205,16 @@
       <span class="val" id="strengthVal">100</span>
     </div>
     <div class="row">
+      <label for="ev">曝光</label>
+      <input id="ev" type="range" min="-2" max="2" step="0.1" value="0">
+      <span class="val" id="evVal">自动</span>
+    </div>
+    <div class="row">
+      <label for="temp">色温</label>
+      <input id="temp" type="range" min="-1" max="1" step="0.05" value="0">
+      <span class="val" id="tempVal">原样</span>
+    </div>
+    <div class="row">
       <span class="lb">边框</span>
       <div class="seg scroll" id="frameSeg"></div>
       <span></span>
@@ -226,9 +241,13 @@
 <div class="flashpop" id="flashpop"></div>
 
 <div class="sheet" id="sheet" hidden>
+  <div class="slotband" aria-hidden="true"><i></i></div>
   <div class="print" id="print">
-    <img id="result" alt="冲印好的相纸">
-    <div class="develop" id="develop"></div>
+    <div class="tilt" id="tilt">
+      <img id="result" alt="冲印好的相纸">
+      <div class="develop" id="develop"></div>
+      <div class="glare" id="glare"></div>
+    </div>
   </div>
   <p id="sheetTip">相纸显影中，等几秒颜色就出来了。</p>
   <div class="btns">
@@ -271,18 +290,24 @@
   //   Instax: red-brown blacks, slightly cool whites.
   //   blur, clarity (< 0 flattens local contrast), bloom, vig, edge (uneven chemistry at the window), grain.
   //   develop: colour of an undeveloped print.
+  // 2026-11-06 second pass: the Flickr fit came out milky grey (many scans online are faded or badly scanned), so
+  // contrast, black depth and chroma were set against two apps the user likes (instsqc, pico cam) and the user's own
+  // prints, shooting the same desk. Hue turns and the cyan-black or red-brown-black character are kept from the fit.
+  // develop: how the print looks right out of the camera. Instax starts pale and milky, Polaroid starts dark teal.
   const FILMS = {
-    polaroid: { expo: 1.005, warm: 0.002, tint: 0, sat: 0.85, hue: [-11.9, 14.9, 8.5], hueSat: [-0.03, 0.07, 0.25], mid: [0.5, -0.46],
-                curve: 0.44, blk: [0.072, 0.108, 0.117], wht: [0.956, 0.901, 0.879],
-                blur: 0.0022, clarity: -0.28, bloom: 0.30, bloomCol: [1.0, 0.88, 0.84],
-                vig: 0.30, edge: 0.75, edgeCol: [0.78, 0.80, 0.86], grain: 0.005, develop: '#b4bcb4' },
-    instax:   { expo: 1.09, warm: -0.048, tint: -0.003, sat: 0.88, hue: [-24.3, 8.0, 15.5], hueSat: [-0.03, -0.12, 0.30], mid: [0.01, -1.65],
-                curve: 1.15, blk: [0.130, 0.076, 0.054], wht: [0.885, 0.898, 0.886],
-                blur: 0.0014, clarity: -0.12, bloom: 0.16, bloomCol: [1.0, 1.0, 0.98],
-                vig: 0.18, edge: 0.0, edgeCol: [1, 1, 1], grain: 0.011, develop: '#1e2024' }
+    polaroid: { expo: 1.005, warm: 0.002, tint: 0, sat: 1.0, hue: [-11.9, 14.9, 8.5], hueSat: [-0.03, 0.07, 0.25], mid: [0.5, -0.46],
+                curve: 1.35, blk: [0.035, 0.060, 0.075], wht: [0.960, 0.930, 0.900],
+                blur: 0.0030, clarity: 0, bloom: 0.20, bloomCol: [1.0, 0.88, 0.84],
+                vig: 0.15, edge: 0.45, edgeCol: [0.80, 0.82, 0.88], grain: 0.006,
+                develop: { bg: 'rgba(28,46,54,.62)', fx: 'brightness(.55) contrast(.45) saturate(.15)' } },
+    instax:   { expo: 1.09, warm: -0.048, tint: -0.003, sat: 1.0, hue: [-24.3, 8.0, 15.5], hueSat: [-0.03, -0.12, 0.30], mid: [0.01, -1.65],
+                curve: 1.5, blk: [0.085, 0.055, 0.040], wht: [0.905, 0.915, 0.910],
+                blur: 0.0022, clarity: 0, bloom: 0.10, bloomCol: [1.0, 1.0, 0.98],
+                vig: 0.10, edge: 0.0, edgeCol: [1, 1, 1], grain: 0.011,
+                develop: { bg: 'rgba(232,233,228,.55)', fx: 'brightness(1.35) contrast(.32) saturate(.1)' } }
   };
   // Spectra uses the same Polaroid chemistry; a little softer and flatter.
-  FILMS.spectra = Object.assign({}, FILMS.polaroid, { sat: 0.82, curve: 0.38, blur: 0.0021, clarity: -0.30, edge: 0.65, edgeCol: [0.80, 0.82, 0.90], grain: 0.006, develop: '#a9b4b0' });
+  FILMS.spectra = Object.assign({}, FILMS.polaroid, { sat: 0.95, curve: 1.2, blur: 0.0032, edge: 0.4, grain: 0.007 });
 
   // ---------- frame colours. dark: light ink and a light table so the card stands out ----------
   const FRAMES = [
@@ -304,7 +329,7 @@
   const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
   const state = {
     fmt: FORMATS[0], zoom: 1, panX: 0, panY: 0, strength: 1, frame: store.get('frame') || 'white', caption: '', font: 'Long Cang',
-    flash: false, facing: 'environment', live: false, grid: store.get('grid') !== '0'
+    flash: false, facing: 'environment', live: false, grid: store.get('grid') !== '0', ev: 0, temp: 0
   };
 
   // ---------- WebGL ----------
@@ -318,7 +343,7 @@ precision highp float;
 varying vec2 v;
 uniform sampler2D T;
 uniform vec4 crop; uniform float mirror, aspect;
-uniform float expo, warm, tint, blur, clarity, curve, sat, bloom, vig, edge, grain, flash, strength, seed, midA, midB;
+uniform float gain, expo, warm, tint, blur, clarity, curve, sat, bloom, vig, edge, grain, flash, strength, seed, midA, midB;
 uniform vec3 hueShift, hueSat, blk, wht, bloomCol, edgeCol;
 const vec3 LW = vec3(0.299, 0.587, 0.114);
 vec2 S(vec2 uv){ uv = clamp(uv, 0.0, 1.0); if (mirror > 0.5) uv.x = 1.0 - uv.x; return crop.xy + uv * crop.zw; }
@@ -358,10 +383,13 @@ vec3 sCurve(vec3 c, float k){
 void main(){
   vec2 uv = v;
   vec3 orig = tap(uv);
-  vec3 soft = blurAt(uv, blur);
+  vec3 soft = mix(blurAt(uv, blur), blurAt(uv, blur * 0.45), 0.4);   // plain softness, no edge halos
   vec3 wide = blurAt(uv, blur * 7.0);
-  vec3 c = soft + (soft - wide) * clarity;                 // clarity < 0 = flatter local contrast
-  c *= expo * (1.0 + flash * 0.10);
+  vec3 c = soft + (soft - wide) * clarity;
+  // exposure in linear light (auto meter x manual EV) with a soft shoulder: bright and airy, highlights roll off
+  vec3 lin = s2l(clamp(c, 0.0, 1.0)) * gain * (1.0 + flash * 0.25);
+  lin = mix(lin, 0.55 + 0.45 * (1.0 - exp(-(lin - 0.55) / 0.45)), step(0.55, lin));
+  c = l2s(lin) * expo;
   c *= vec3(1.0 + warm, 1.0 + tint, 1.0 - warm);
   // colour: in Oklab, mute chroma and turn reds, greens and blues separately (values fitted to real prints)
   vec3 o = toLab(s2l(clamp(c, 0.0, 1.0)));
@@ -377,7 +405,7 @@ void main(){
   c = blk + c * (wht - blk);
   float l = dot(c, LW);
   // highlight glow
-  float wl = dot(wide, LW);
+  float wl = dot(wide, LW) * gain;
   c += bloomCol * max(wl - 0.62, 0.0) * bloom * 1.6;
   // lens falloff and flash hotspot
   vec2 d = (uv - 0.5) * vec2(aspect, 1.0);
@@ -401,7 +429,7 @@ void main(){
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 0,1, 1,0, 1,1]), gl.STATIC_DRAW);
   const ap = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
-  const U = {}; ['T','crop','mirror','aspect','expo','warm','tint','blur','clarity','curve','sat','midA','midB','bloom','vig','edge','grain','flash','strength','seed','hueShift','hueSat','blk','wht','bloomCol','edgeCol']
+  const U = {}; ['T','crop','mirror','aspect','gain','expo','warm','tint','blur','clarity','curve','sat','midA','midB','bloom','vig','edge','grain','flash','strength','seed','hueShift','hueSat','blk','wht','bloomCol','edgeCol']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -425,6 +453,32 @@ void main(){
     return [0.5 + state.panX - sw / 2, 0.5 + state.panY - shh / 2, sw, shh];
   }
 
+  // ---------- auto exposure: meter the cropped frame (centre weighted, linear light) and aim it at a bright, airy mid grey ----------
+  const AE_TARGET = 0.21, AE_N = 24;
+  const aeC = document.createElement('canvas'); aeC.width = aeC.height = AE_N;
+  const aeG = aeC.getContext('2d', { willReadFrequently: true });
+  const LIN = new Float32Array(256); for (let i = 0; i < 256; i++) { const v = i / 255; LIN[i] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+  let aeGain = 1, aeTick = 0;
+  function meter(src) {
+    try {
+      const cr = cropRect(), s = srcSize();
+      aeG.drawImage(src, cr[0] * s.w, cr[1] * s.h, cr[2] * s.w, cr[3] * s.h, 0, 0, AE_N, AE_N);
+      const d = aeG.getImageData(0, 0, AE_N, AE_N).data; let sum = 0, ws = 0;
+      for (let y = 0; y < AE_N; y++) for (let x = 0; x < AE_N; x++) {
+        const i = (y * AE_N + x) * 4, w = 1.6 - Math.hypot(x - 11.5, y - 11.5) / 16;
+        sum += (0.2126 * LIN[d[i]] + 0.7152 * LIN[d[i + 1]] + 0.0722 * LIN[d[i + 2]]) * w; ws += w;
+      }
+      return Math.min(3, Math.max(0.6, AE_TARGET / Math.max(sum / ws, 0.004)));
+    } catch (e) { return aeGain; }
+  }
+  // 35 mm equivalent focal length of what ends up on the print (lens, crop to the film shape, digital zoom)
+  const BASE_MM = { ultra: 13, wide: 24, multi: 24, front: 23 };
+  function eqMM() {
+    const b = BASE_MM[lens.kind]; if (!b || !state.live) return 0;
+    const c = cropRect(), s = srcSize();
+    return Math.round(b / (Math.hypot(c[2] * s.w, c[3] * s.h) / Math.hypot(s.w, s.h)));
+  }
+
   function draw(w, h, opts) {
     const f = state.fmt, F = FILMS[f.film], o = opts || {};
     glc.width = w; glc.height = h; gl.viewport(0, 0, w, h);
@@ -436,7 +490,8 @@ void main(){
     gl.uniform1f(U.mirror, state.live && state.facing === 'user' ? 1 : 0);
     gl.uniform1f(U.aspect, f.iw / f.ih);
     gl.uniform1f(U.expo, F.expo * (o.expo || 1));
-    gl.uniform1f(U.warm, F.warm + (o.warm || 0));
+    gl.uniform1f(U.gain, aeGain * Math.pow(2, state.ev));
+    gl.uniform1f(U.warm, F.warm + (o.warm || 0) + state.temp * 0.06);
     gl.uniform1f(U.tint, F.tint);
     gl.uniform1f(U.blur, F.blur); gl.uniform1f(U.clarity, F.clarity); gl.uniform1f(U.curve, F.curve); gl.uniform1f(U.sat, F.sat);
     gl.uniform1f(U.midA, F.mid[0]); gl.uniform1f(U.midB, F.mid[1]);
@@ -469,6 +524,7 @@ void main(){
     dirty = true;
   }
   function loop() {
+    if (state.live && video.readyState >= 2 && ++aeTick % 6 === 0) aeGain += (meter(video) - aeGain) * 0.25;
     if (state.live || dirty) {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       draw(Math.round(viewW * dpr), Math.round(viewH * dpr));
@@ -518,7 +574,8 @@ void main(){
     const badge = $('badge');
     badge.className = 'badge' + (state.live ? ' live' : '');
     if (!state.live) { badge.textContent = isSample ? '示例画面' : '已选照片'; return; }
-    badge.textContent = lens.name + (state.zoom > 1.005 ? ' · 数码 ' + state.zoom.toFixed(1) + '×' : '');
+    const mm = eqMM();
+    badge.textContent = lens.name + (mm ? ' · 约 ' + mm + 'mm' : '') + (state.zoom > 1.005 ? ' · 数码 ' + state.zoom.toFixed(1) + '×' : '');
   }
   function showMsg(t) { const m = $('msg'); m.textContent = t; m.hidden = !t; }
 
@@ -591,7 +648,7 @@ void main(){
       const max = 2600, s = Math.min(1, max / Math.max(im.naturalWidth, im.naturalHeight));
       const c = document.createElement('canvas'); c.width = Math.round(im.naturalWidth * s); c.height = Math.round(im.naturalHeight * s);
       c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
-      stopCamera(); still = c; isSample = false; state.panX = state.panY = 0; setZoom(1); showMsg(''); sync();
+      stopCamera(); still = c; isSample = false; state.panX = state.panY = 0; setZoom(1); aeGain = meter(still); showMsg(''); sync();
     };
     im.onerror = () => { URL.revokeObjectURL(url); showMsg('这张照片读不出来，换一张试试。'); };
     im.src = url;
@@ -616,6 +673,8 @@ void main(){
   $('zoom').addEventListener('input', e => setZoom(+e.target.value));
   $('strength').addEventListener('input', e => { state.strength = e.target.value / 100; $('strengthVal').textContent = e.target.value; dirty = true; });
   $('caption').addEventListener('input', e => { state.caption = e.target.value; sync(); });
+  $('ev').addEventListener('input', e => { state.ev = +e.target.value; $('evVal').textContent = Math.abs(state.ev) < 0.05 ? '自动' : (state.ev > 0 ? '+' : '') + state.ev.toFixed(1); dirty = true; });
+  $('temp').addEventListener('input', e => { state.temp = +e.target.value; const v = Math.round(state.temp * 10); $('tempVal').textContent = v === 0 ? '原样' : (v > 0 ? '暖 ' : '冷 ') + Math.abs(v); dirty = true; });
   function seg(id, key) {
     $(id).addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; state[key] = b.dataset.v;
       $(id).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); sync(); });
@@ -717,16 +776,76 @@ void main(){
     lastFile = new File([blob], '相纸-' + f.id + '-' + Date.now() + '.jpg', { type: 'image/jpeg' });
     const img = $('result'); if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
     img.dataset.url = URL.createObjectURL(blob); img.src = img.dataset.url;
-    const dv = $('develop');
-    Object.assign(dv.style, { left: (f.side / f.w * 100) + '%', top: (f.top / f.h * 100) + '%', width: (f.iw / f.w * 100) + '%', height: (f.ih / f.h * 100) + '%', background: FILMS[f.film].develop });
+    const dv = $('develop'), D = FILMS[f.film].develop;
+    Object.assign(dv.style, { left: (f.side / f.w * 100) + '%', top: (f.top / f.h * 100) + '%', width: (f.iw / f.w * 100) + '%', height: (f.ih / f.h * 100) + '%', background: D.bg });
+    dv.style.webkitBackdropFilter = D.fx; dv.style.backdropFilter = D.fx;
     dv.classList.remove('go'); void dv.offsetWidth;
-    $('toast').textContent = ''; $('sheetTip').textContent = '相纸显影中，等几秒颜色就出来了。';
+    $('toast').textContent = ''; $('sheetTip').textContent = '出片中……';
+    tilt.b0 = null; tilt.tx = tilt.ty = tilt.rx = tilt.ry = 0;
+    const fitS = Math.min(Math.min(window.innerWidth - 32, 460) / W, window.innerHeight * 0.62 / H);
+    img.style.width = Math.round(W * fitS) + 'px'; img.style.height = Math.round(H * fitS) + 'px';
+    $('print').style.visibility = 'hidden';
     $('sheet').hidden = false;
-    img.onload = () => requestAnimationFrame(() => dv.classList.add('go'));
-    setTimeout(() => { $('sheetTip').textContent = '点“存到相册”，在弹出的菜单里选“存储图像”。也可以长按图片保存。'; }, 4200);
+    img.onload = () => requestAnimationFrame(eject);
     btn.disabled = false;
   }
-  $('shutter').addEventListener('click', shoot);
+  // the print is pushed out of the slot in two motor steps, drops a little, then develops
+  function eject() {
+    const pr = $('print'), r = pr.getBoundingClientRect(), band = document.querySelector('.slotband').getBoundingClientRect();
+    pr.style.visibility = '';
+    const d = r.bottom - band.bottom + 2;
+    if (!pr.animate || matchMedia('(prefers-reduced-motion: reduce)').matches) { develop(); return; }
+    const T = y => ({ transform: 'translateY(' + y.toFixed(1) + 'px)' });
+    const a = pr.animate([
+      Object.assign(T(-d), { offset: 0 }), Object.assign(T(-d * 0.58), { offset: 0.30 }), Object.assign(T(-d * 0.56), { offset: 0.38 }),
+      Object.assign(T(-d * 0.18), { offset: 0.70 }), Object.assign(T(-d * 0.16), { offset: 0.76 }),
+      Object.assign(T(6), { offset: 0.94 }), Object.assign(T(0), { offset: 1 })
+    ], { duration: 2400, easing: 'ease-in-out' });
+    a.onfinish = develop;
+    setTimeout(() => { if (a.playState !== 'finished') a.cancel(); develop(); }, 3200);   // never get stuck half out
+  }
+  let devTimer = 0;
+  function develop() {
+    if ($('develop').classList.contains('go')) return;
+    $('develop').classList.add('go');
+    $('sheetTip').textContent = '显影中，大约 10 秒。可以拖动相纸，或者倾斜手机看看。';
+    clearTimeout(devTimer);
+    devTimer = setTimeout(() => { if (!$('sheet').hidden) $('sheetTip').textContent = '点“存到相册”，在弹出的菜单里选“存储图像”。也可以长按图片保存。'; }, 10500);
+  }
+
+  // ---------- the print as an object: tilt it with a finger or by tilting the phone ----------
+  const tilt = { rx: 0, ry: 0, tx: 0, ty: 0, drag: null, b0: null, g0: null };
+  const clampT = v => Math.max(-16, Math.min(16, v));
+  let motionOn = false;
+  function askMotion() {   // must run inside the shutter tap on iOS
+    if (motionOn) return; motionOn = true;
+    const on = () => window.addEventListener('deviceorientation', e => {
+      if ($('sheet').hidden || tilt.drag || e.beta == null) return;
+      if (tilt.b0 == null) { tilt.b0 = e.beta; tilt.g0 = e.gamma; }
+      tilt.tx = clampT((e.beta - tilt.b0) * 0.7); tilt.ty = clampT((e.gamma - tilt.g0) * 0.7);
+    });
+    try {
+      if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function')
+        DeviceOrientationEvent.requestPermission().then(r => { if (r === 'granted') on(); }).catch(() => {});
+      else if (window.DeviceOrientationEvent) on();
+    } catch (e) {}
+  }
+  const tl = $('tilt');
+  tl.addEventListener('pointerdown', e => { tl.setPointerCapture(e.pointerId); tilt.drag = { x: e.clientX, y: e.clientY }; });
+  tl.addEventListener('pointermove', e => { if (!tilt.drag) return; tilt.ty = clampT((e.clientX - tilt.drag.x) * 0.12); tilt.tx = clampT(-(e.clientY - tilt.drag.y) * 0.12); });
+  const tup = () => { tilt.drag = null; tilt.tx = tilt.ty = 0; tilt.b0 = null; };
+  tl.addEventListener('pointerup', tup); tl.addEventListener('pointercancel', tup);
+  (function tiltLoop() {
+    if (!$('sheet').hidden) {
+      tilt.rx += (tilt.tx - tilt.rx) * 0.14; tilt.ry += (tilt.ty - tilt.ry) * 0.14;
+      tl.style.transform = 'perspective(900px) rotateX(' + tilt.rx.toFixed(2) + 'deg) rotateY(' + tilt.ry.toFixed(2) + 'deg)';
+      $('result').style.boxShadow = (-tilt.ry * 0.9).toFixed(1) + 'px ' + (14 + tilt.rx * 0.9).toFixed(1) + 'px 30px rgba(0,0,0,.6)';
+      $('glare').style.backgroundPosition = (50 + tilt.ry * 2.6).toFixed(1) + '% ' + (50 - tilt.rx * 2.6).toFixed(1) + '%';
+    }
+    requestAnimationFrame(tiltLoop);
+  })();
+
+  $('shutter').addEventListener('click', () => { askMotion(); shoot(); });
   $('again').addEventListener('click', () => { $('sheet').hidden = true; });
 
   const downloadsP = (window.claude && window.claude.use) ? window.claude.use('downloads').catch(() => null) : Promise.resolve(null);
@@ -764,7 +883,7 @@ void main(){
     return c;
   }
 
-  buildFormats(); sync(); layout();
+  buildFormats(); sync(); layout(); aeGain = meter(still);
   window.addEventListener('resize', layout);
   requestAnimationFrame(loop);
   // try the camera straight away where it can work; otherwise stay on the sample
