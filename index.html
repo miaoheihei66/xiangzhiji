@@ -77,6 +77,17 @@
   .lenses button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
   .icon-btn svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   #flashBtn[aria-pressed="true"] svg path { fill: currentColor; }
+  .frames { padding: 10px 0 12px; border-bottom: 1px solid var(--line); }
+  .frames .lb { font-size: 13px; color: var(--muted); letter-spacing: .04em; }
+  .fchips { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+  .fpanel .fchips { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 6px; }
+  .fpanel h4 { margin: 12px 0 0; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: .06em; }
+  .fchip { appearance: none; min-width: 0; border: 1px solid var(--line); background: var(--panel-2); color: var(--fg); border-radius: 10px; padding: 6px 2px 5px; font: inherit; font-size: 12px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; }
+  .fchip[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+  .fchip .th { width: 40px; height: 28px; border-radius: 3px; background: center / cover no-repeat; display: block; box-shadow: 0 1px 3px rgba(0,0,0,.45); }
+  .fchip.more .th { display: grid; place-items: center; box-shadow: none; color: var(--muted); }
+  .fchip.more .th svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
+  .fchip.more[aria-expanded="true"] .th svg { transform: rotate(180deg); }
   .seg.scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 2px 0; }
   .seg.scroll::-webkit-scrollbar { display: none; }
   .seg.scroll button { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px; }
@@ -217,10 +228,10 @@
       <input id="temp" type="range" min="-1" max="1" step="0.05" value="0">
       <span class="val" id="tempVal">原样</span>
     </div>
-    <div class="row">
-      <span class="lb">边框</span>
-      <div class="seg scroll" id="frameSeg"></div>
-      <span></span>
+    <div class="frames">
+      <span class="lb">相纸</span>
+      <div class="fchips" id="frameSeg"></div>
+      <div class="fpanel" id="framePanel" hidden></div>
     </div>
     <div class="row">
       <label for="caption">手写字</label>
@@ -278,33 +289,34 @@
   // ---------- cameras: one typical camera per film, each with its own light touch ----------
   // Colour stays faithful (no hue turning: an earlier fit turned orange into pink and skin purple). Each camera only
   // differs in white balance lean, contrast, black and white point, saturation, vignette and grain. No artificial blur.
-  //   expo, warm, tint: exposure and white balance. sat: chroma (hue untouched). curve: S-curve mix (1 = smoothstep).
+  //   expo, warm, tint: exposure and white balance. sat: chroma (hue untouched). hd: colour lost in highlights.
+  //   curve: S-curve mix (1 = smoothstep). Values tuned 2026-11-08 on the user's own raw photos (desk, selfie).
   //   blk, wht: black and white point per channel. vig: lens falloff. edge: uneven chemistry at the window (Polaroid).
   //   grain: film grain.
   const CAMERAS = [
     { id: 'now2', short: 'Now Gen 2', name: 'Polaroid Now Gen 2', fmt: 'itype', brand: 'polaroid', film: 'i-Type 相纸',
       note: 'Polaroid Now Gen 2（黑白配色），用 i-Type 相纸，画面 79 × 77 mm。宝丽来曝光比较稳，颜色比 Instax 淡一点、偏暖奶油调，暗部不死黑。',
-      look: { expo: 1.0, warm: 0.012, tint: 0, sat: 0.94, curve: 0.55, blk: [0.040, 0.045, 0.050], wht: [0.975, 0.965, 0.945], vig: 0.10, edge: 0.18, edgeCol: [0.86, 0.87, 0.90], grain: 0.006 },
+      look: { expo: 1.0, warm: 0.030, tint: 0, sat: 0.86, hd: 0.35, curve: 0.50, blk: [0.070, 0.082, 0.092], wht: [0.960, 0.930, 0.875], vig: 0.22, edge: 0.18, edgeCol: [0.86, 0.87, 0.90], grain: 0.016 },
       icon: '<svg viewBox="0 0 56 44"><rect x="5" y="5" width="46" height="35" rx="7" fill="#151515"/><path d="M5 18V12a7 7 0 0 1 7-7h32a7 7 0 0 1 7 7v6z" fill="#f1f0ec"/><rect x="9" y="8" width="7" height="5" rx="1.5" fill="#222"/><rect x="38" y="8" width="9" height="5" rx="1.2" fill="#d9d9d4" stroke="#999" stroke-width=".5"/><circle cx="28" cy="25" r="10.5" fill="#2a2a2a" stroke="#555" stroke-width="1.2"/><circle cx="28" cy="25" r="6.5" fill="#0b0f16"/><circle cx="26" cy="23" r="2" fill="#5d7a99" opacity=".7"/><circle cx="44" cy="33" r="2.3" fill="#e8e8e4"/></svg>' },
     { id: 'go2', short: 'Go Gen 2', name: 'Polaroid Go Gen 2', fmt: 'go', brand: 'polaroid', film: 'Go 相纸',
       note: 'Polaroid Go Gen 2，世界上最小的宝丽来，用 Go 相纸，画面 46 × 47 mm。镜头小、四角暗角明显一点，对比稍强，室内人像最好看。',
-      look: { expo: 1.02, warm: 0.010, tint: 0, sat: 0.96, curve: 0.70, blk: [0.035, 0.040, 0.045], wht: [0.970, 0.960, 0.945], vig: 0.22, edge: 0.15, edgeCol: [0.86, 0.87, 0.90], grain: 0.007 },
+      look: { expo: 1.0, warm: 0.025, tint: 0, sat: 0.88, hd: 0.35, curve: 0.62, blk: [0.065, 0.076, 0.086], wht: [0.958, 0.930, 0.878], vig: 0.32, edge: 0.15, edgeCol: [0.86, 0.87, 0.90], grain: 0.017 },
       icon: '<svg viewBox="0 0 56 44"><rect x="10" y="5" width="36" height="34" rx="9" fill="#f3f2ee" stroke="#cfcfca" stroke-width=".8"/><g><rect x="13" y="14" width="2" height="14" fill="#e63b2e"/><rect x="15" y="14" width="2" height="14" fill="#f39a1e"/><rect x="17" y="14" width="2" height="14" fill="#f6cf2a"/><rect x="19" y="14" width="2" height="14" fill="#3fae4a"/><rect x="21" y="14" width="2" height="14" fill="#2c7cc8"/></g><circle cx="31" cy="23" r="8.5" fill="#1d1d1d"/><circle cx="31" cy="23" r="5" fill="#0b0f16"/><circle cx="29.6" cy="21.6" r="1.6" fill="#5d7a99" opacity=".7"/><rect x="36" y="8" width="7" height="4" rx="1.2" fill="#2a2a2a"/><circle cx="16" cy="9.5" r="2" fill="#e63b2e"/></svg>' },
     { id: 'image', short: 'Image', name: 'Polaroid Image（Spectra）', fmt: 'spectra', brand: 'polaroid', film: 'Spectra 相纸',
       note: 'Polaroid Image（美国叫 Spectra），90 年代的宽幅宝丽来，画面 90 × 73 mm，横版。比 Now 更柔一点、更暖一点，很有老照片的味道。',
-      look: { expo: 1.0, warm: 0.018, tint: 0, sat: 0.92, curve: 0.45, blk: [0.045, 0.048, 0.050], wht: [0.970, 0.960, 0.940], vig: 0.12, edge: 0.20, edgeCol: [0.86, 0.87, 0.90], grain: 0.006 },
+      look: { expo: 1.0, warm: 0.040, tint: 0, sat: 0.80, hd: 0.40, curve: 0.40, blk: [0.085, 0.090, 0.095], wht: [0.955, 0.915, 0.860], vig: 0.22, edge: 0.20, edgeCol: [0.86, 0.87, 0.90], grain: 0.016 },
       icon: '<svg viewBox="0 0 56 44"><path d="M3 15h50v20a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4z" fill="#1b1b1b"/><path d="M8 15l4-7h32l4 7z" fill="#2c2c2c"/><rect x="15" y="9.5" width="26" height="4" rx="1" fill="#e9e9e4" opacity=".9"/><circle cx="20" cy="27" r="8.5" fill="#2a2a2a" stroke="#6a6a6a" stroke-width="1"/><circle cx="20" cy="27" r="5" fill="#0b0f16"/><circle cx="18.6" cy="25.6" r="1.6" fill="#5d7a99" opacity=".7"/><rect x="36" y="20" width="12" height="2" rx="1" fill="#444"/><rect x="36" y="25" width="12" height="2" rx="1" fill="#444"/><circle cx="46" cy="33" r="2" fill="#c33"/></svg>' },
     { id: 'mini90', short: 'mini 90', name: 'instax mini 90', fmt: 'mini', brand: 'instax', film: 'instax mini 相纸',
       note: 'instax mini 90 Neo Classic，最经典的 mini 机型，用 instax mini 相纸，画面 46 × 62 mm。颜色干净偏冷，对比比宝丽来强一点，白色很透。',
-      look: { expo: 1.0, warm: -0.012, tint: 0, sat: 1.02, curve: 0.75, blk: [0.035, 0.032, 0.035], wht: [0.965, 0.970, 0.980], vig: 0.08, edge: 0, edgeCol: [1, 1, 1], grain: 0.009 },
+      look: { expo: 1.0, warm: -0.025, tint: 0, sat: 0.96, hd: 0.30, curve: 0.90, blk: [0.050, 0.047, 0.055], wht: [0.935, 0.952, 0.970], vig: 0.14, edge: 0, edgeCol: [1, 1, 1], grain: 0.018 },
       icon: '<svg viewBox="0 0 56 44"><rect x="3" y="7" width="50" height="33" rx="4" fill="#1d1d1d"/><path d="M3 15v-4a4 4 0 0 1 4-4h42a4 4 0 0 1 4 4v4z" fill="#c9c9c6"/><rect x="7" y="9" width="8" height="4.5" rx="1" fill="#2a2a2a"/><rect x="39" y="8.5" width="10" height="5" rx="1" fill="#f2f2ee" stroke="#999" stroke-width=".5"/><circle cx="28" cy="27" r="11" fill="#bdbdba"/><circle cx="28" cy="27" r="8.3" fill="#262626"/><circle cx="28" cy="27" r="5" fill="#0b0f16"/><circle cx="26.5" cy="25.5" r="1.7" fill="#5d7a99" opacity=".7"/><circle cx="46" cy="5.5" r="2.2" fill="#c9c9c6"/></svg>' },
     { id: 'sq40', short: 'SQ40', name: 'instax SQUARE SQ40', fmt: 'square', brand: 'instax', film: 'instax SQUARE 相纸',
       note: 'instax SQUARE SQ40，复古黑银外观，用 instax SQUARE 相纸，画面 62 × 62 mm 正方形。颜色自然、略带一点暖，对比适中。',
-      look: { expo: 1.0, warm: 0.004, tint: 0, sat: 0.98, curve: 0.60, blk: [0.040, 0.036, 0.034], wht: [0.970, 0.968, 0.960], vig: 0.12, edge: 0, edgeCol: [1, 1, 1], grain: 0.010 },
+      look: { expo: 1.0, warm: 0.005, tint: 0, sat: 0.90, hd: 0.30, curve: 0.75, blk: [0.070, 0.062, 0.058], wht: [0.955, 0.942, 0.920], vig: 0.18, edge: 0, edgeCol: [1, 1, 1], grain: 0.018 },
       icon: '<svg viewBox="0 0 56 44"><rect x="7" y="4" width="42" height="37" rx="5" fill="#1f1f1f"/><path d="M7 12V9a5 5 0 0 1 5-5h32a5 5 0 0 1 5 5v3z" fill="#cfcfcb"/><rect x="11" y="6" width="7" height="4" rx="1" fill="#2a2a2a"/><rect x="36" y="6" width="9" height="4" rx="1" fill="#f2f2ee" stroke="#999" stroke-width=".5"/><circle cx="28" cy="26" r="12" fill="#c4c4c0"/><circle cx="28" cy="26" r="9.5" fill="#2b2b2b" stroke="#888" stroke-width=".6"/><circle cx="28" cy="26" r="5.5" fill="#0b0f16"/><circle cx="26.3" cy="24.3" r="1.8" fill="#5d7a99" opacity=".7"/></svg>' },
     { id: 'wide400', short: 'WIDE 400', name: 'instax WIDE 400', fmt: 'wide', brand: 'instax', film: 'instax WIDE 相纸',
       note: 'instax WIDE 400（黑色），用 instax WIDE 相纸，画面 99 × 62 mm，很宽，适合合照和风景。镜头焦距更长，画面干净中性，对比略强。',
-      look: { expo: 1.0, warm: -0.008, tint: 0, sat: 1.0, curve: 0.70, blk: [0.030, 0.030, 0.035], wht: [0.970, 0.975, 0.980], vig: 0.06, edge: 0, edgeCol: [1, 1, 1], grain: 0.008 },
+      look: { expo: 1.0, warm: -0.015, tint: 0, sat: 0.95, hd: 0.30, curve: 0.85, blk: [0.048, 0.048, 0.058], wht: [0.940, 0.955, 0.968], vig: 0.12, edge: 0, edgeCol: [1, 1, 1], grain: 0.017 },
       icon: '<svg viewBox="0 0 56 44"><rect x="1" y="9" width="54" height="29" rx="5" fill="#1b1b1b"/><rect x="5" y="12" width="14" height="3.5" rx="1" fill="#333"/><rect x="40" y="12" width="11" height="5" rx="1" fill="#f2f2ee" stroke="#999" stroke-width=".5"/><circle cx="21" cy="25" r="10" fill="#2d2d2d" stroke="#777" stroke-width="1"/><circle cx="21" cy="25" r="6" fill="#0b0f16"/><circle cx="19.4" cy="23.4" r="1.8" fill="#5d7a99" opacity=".7"/><rect x="37" y="24" width="14" height="1.6" rx=".8" fill="#3a3a3a"/><rect x="37" y="28" width="14" height="1.6" rx=".8" fill="#3a3a3a"/><circle cx="48" cy="7.5" r="2.2" fill="#3a3a3a"/></svg>' }
   ];
   // what a print looks like straight out of the camera: Instax starts pale and milky, Polaroid starts dark teal
@@ -325,13 +337,14 @@
   function font(px, w) { return (w || '700') + ' ' + px.toFixed(2) + 'px "Avenir Next", "Helvetica Neue", Arial, sans-serif'; }
 
   const STYLES = [
-    { id: 'white', name: '经典白', sw: '#f4f2eb', base: '#f4f2eb' },
-    { id: 'black', name: '经典黑', sw: '#1c1c1e', base: '#1c1c1e', dark: true },
-    { id: 'round', name: '圆框', sw: '#f4f2eb', base: '#f4f2eb', round: true },
-    { id: 'rainbow', name: '彩虹', sw: 'linear-gradient(135deg,' + RAINBOW.join(',') + ')', base: '#f3d3b0',
-      paint(g, f) { const q = geo(f), lg = q.land ? g.createLinearGradient(0, 0, q.w, 0) : g.createLinearGradient(0, 0, 0, q.h);
-        RAINBOW.forEach((c, i) => lg.addColorStop(i / (RAINBOW.length - 1), c)); g.fillStyle = lg; g.fillRect(0, 0, q.w, q.h); } },
-    { id: 'airmail', name: '航空信', sw: 'repeating-linear-gradient(135deg,#c8343a 0 4px,#fff 4px 7px,#2b4c9a 7px 11px,#fff 11px 14px)', base: '#f7f4ec',
+    { id: 'white', name: '白', base: '#f4f2eb' },
+    { id: 'black', name: '黑', base: '#1c1c1e', dark: true },
+    { id: 'cream', name: '奶白', base: '#efe6d2' },
+    { id: 'silver', name: '银', sw: 'linear-gradient(135deg,#a9adb3,#eceef1,#b4b8be)', base: '#c4c7cc', metal: true,
+      paint(g, f, K) { const q = geo(f), lg = g.createLinearGradient(0, 0, q.w * 0.8, q.h);
+        [[0, '#a7abb1'], [.2, '#e8eaed'], [.42, '#b5b9bf'], [.66, '#e1e4e8'], [1, '#9fa3a9']].forEach(([s, c]) => lg.addColorStop(s, c)); g.fillStyle = lg; g.fillRect(0, 0, q.w, q.h);
+        const R = rng(7); for (let y = 0; y < q.h; y += 0.09) { g.fillStyle = 'rgba(255,255,255,' + (R() * 0.07).toFixed(3) + ')'; g.fillRect(0, y, q.w, 0.045); } } },
+    { id: 'airmail', name: '航空', sw: 'repeating-linear-gradient(135deg,#c8343a 0 4px,#fff 4px 7px,#2b4c9a 7px 11px,#fff 11px 14px)', base: '#f7f4ec',
       paint(g, f) { const q = geo(f), b = Math.min(2.4, q.x * 0.55);
         g.save(); g.beginPath(); g.rect(0, 0, q.w, q.h); g.rect(b, b, q.w - 2 * b, q.h - 2 * b); g.clip('evenodd');
         const cols = ['#c8343a', '#f7f4ec', '#2b4c9a', '#f7f4ec'], s = 1.7;
@@ -353,21 +366,88 @@
         if (q.w > 70) { g.strokeStyle = 'rgba(40,40,60,.45)'; g.lineWidth = 0.25; const px = sx - sh * 0.35, py = sy + sh * 0.5;
           g.beginPath(); g.arc(px, py, sh * 0.42, 0, 7); g.stroke(); g.beginPath(); g.arc(px, py, sh * 0.3, 0, 7); g.stroke();
           for (let j = 0; j < 4; j++) { g.beginPath(); for (let x = 0; x <= sh * 1.4; x += 0.5) g.lineTo(px - sh * 1.9 + x, py - sh * 0.3 + j * sh * 0.2 + Math.sin(x * 0.9) * 0.5); g.stroke(); } } } },
-    { id: 'macaron', name: '马卡龙', sw: '#f3c9d3', base: '#f3c9d3',
-      paint(g, f) { const q = geo(f); g.fillStyle = MACARON[f.id] || '#f3c9d3'; g.fillRect(0, 0, q.w, q.h);
-        g.fillStyle = 'rgba(255,255,255,.75)'; const s = 4.2;
-        for (let y = 0, r = 0; y < q.h + s; y += s * 0.866, r++) for (let x = (r % 2) * s / 2; x < q.w + s; x += s) { g.beginPath(); g.arc(x, y, 0.65, 0, 7); g.fill(); } } },
-    { id: 'stained', name: '彩色玻璃', sw: 'conic-gradient(#c43d4b,#e9a23b,#3f8f5e,#2f5fa8,#7a3f98,#c43d4b)', base: '#262022', dark: true,
-      paint(g, f) { const q = geo(f), R = rng(hashStr('stained' + f.id)), s = 6.5, nx = Math.ceil(q.w / s) + 1, ny = Math.ceil(q.h / s) + 1, P = [];
-        for (let j = 0; j <= ny; j++) { P[j] = []; for (let i = 0; i <= nx; i++) P[j][i] = [i * s + (i && i < nx ? (R() - .5) * s * .7 : 0) - 0.5, j * s + (j && j < ny ? (R() - .5) * s * .7 : 0) - 0.5]; }
-        const C = ['#c43d4b', '#e9a23b', '#3f8f5e', '#2f5fa8', '#7a3f98', '#d8c45a', '#3aa3a6', '#e0743a'];
-        g.lineJoin = 'round'; g.lineWidth = 0.45; g.strokeStyle = '#1e1a1c';
-        for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
-          const a = P[j][i], b = P[j][i + 1], c = P[j + 1][i + 1], d = P[j + 1][i], split = R() < .5;
-          const tris = split ? [[a, b, c], [a, c, d]] : [[a, b, d], [b, c, d]];
-          tris.forEach(t => { g.beginPath(); g.moveTo(t[0][0], t[0][1]); g.lineTo(t[1][0], t[1][1]); g.lineTo(t[2][0], t[2][1]); g.closePath();
-            const col = C[Math.floor(R() * C.length)]; const lg = g.createLinearGradient(t[0][0], t[0][1], t[2][0], t[2][1]); lg.addColorStop(0, col); lg.addColorStop(1, 'rgba(255,255,255,.35)');
-            g.fillStyle = col; g.fill(); g.fillStyle = lg; g.globalAlpha = .35; g.fill(); g.globalAlpha = 1; g.stroke(); }); } } },
+    { id: 'kraft', name: '牛皮', base: '#c6a273',
+      paint(g, f) { const q = geo(f), R = rng(hashStr('kraft' + f.id));
+        for (let i = 0, n = Math.round(q.w * q.h / 1.6); i < n; i++) { const x = R() * q.w, y = R() * q.h, a = R() * 6.3, l = 0.4 + R() * 1.6;
+          g.strokeStyle = R() < .5 ? 'rgba(120,86,48,.35)' : 'rgba(236,212,170,.45)'; g.lineWidth = 0.08 + R() * 0.08;
+          g.beginPath(); g.moveTo(x, y); g.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); }
+        // a strip of washi tape across the top edge
+        const tw = Math.min(q.w * 0.46, 36), th = Math.min(q.y * 1.15, 6.5), tx = q.w / 2, ty = th * 0.38;
+        g.save(); g.translate(tx, ty); g.rotate(-0.05);
+        g.beginPath(); g.moveTo(-tw / 2, -th / 2);
+        for (let k2 = 0; k2 <= 6; k2++) g.lineTo(-tw / 2 + (k2 % 2 ? 0.5 : 0), -th / 2 + th * k2 / 6);
+        g.lineTo(tw / 2, th / 2); for (let k2 = 6; k2 >= 0; k2--) g.lineTo(tw / 2 - (k2 % 2 ? 0.5 : 0), -th / 2 + th * k2 / 6);
+        g.closePath(); g.fillStyle = 'rgba(232,176,166,.9)'; g.fill(); g.clip();
+        g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 0.7;
+        for (let x = -tw; x < tw; x += 2.2) { g.beginPath(); g.moveTo(x, -th); g.lineTo(x + th * 1.4, th); g.stroke(); }
+        g.restore(); } },
+    { id: 'ruled', name: '横线', base: '#fbfaf3',
+      paint(g, f) { const q = geo(f);
+        g.strokeStyle = 'rgba(96,140,196,.38)'; g.lineWidth = 0.13;
+        for (let y = 2.6; y < q.h - 0.5; y += 2.6) { g.beginPath(); g.moveTo(0, y); g.lineTo(q.w, y); g.stroke(); }
+        g.strokeStyle = 'rgba(214,84,84,.55)'; g.lineWidth = 0.16; const mx = Math.max(1.6, q.x * 0.45);
+        g.beginPath(); g.moveTo(mx, 0); g.lineTo(mx, q.h); g.stroke();
+        g.fillStyle = 'rgba(60,60,70,.16)'; const hr = Math.min(q.bm * 0.06, 0.9);
+        [0.3, 0.5, 0.7].forEach(t => { g.beginPath(); g.arc(mx * 0.45, q.h * t, hr, 0, 7); g.fill(); }); } },
+    { id: 'stamp', name: '邮票', base: '#fbf8f1',
+      paint(g, f) { const q = geo(f), ins = Math.min(q.x * 0.55, 2.2);
+        g.strokeStyle = '#b7352f'; g.lineWidth = 0.3; g.strokeRect(ins, ins, q.w - ins * 2, q.h - ins * 2);
+        g.lineWidth = 0.12; g.strokeRect(ins + 0.6, ins + 0.6, q.w - ins * 2 - 1.2, q.h - ins * 2 - 1.2);
+        const fs = Math.min(q.bm * 0.42, 9);
+        g.fillStyle = '#b7352f'; g.font = font(fs, '800'); g.textAlign = 'right'; g.textBaseline = 'middle';
+        g.fillText('80', q.w - q.x - 0.5, q.by + q.bm * 0.52);
+        g.textAlign = 'left'; g.fillStyle = '#5a4a3a'; g.font = font(Math.min(q.bm * 0.14, 2.6), '700');
+        g.fillText('POSTAGE', q.x + 0.5, q.by + q.bm * 0.42); g.font = font(Math.min(q.bm * 0.11, 2), '600'); g.fillStyle = 'rgba(90,74,58,.7)';
+        g.fillText('INSTANT · 2026', q.x + 0.5, q.by + q.bm * 0.66); g.textBaseline = 'alphabetic'; },
+      post(g, f) { const q = geo(f), r = 0.85, s = 2.4;   // perforated edge: cut half circles all round
+        g.globalCompositeOperation = 'destination-out'; g.fillStyle = '#000';
+        const nx = Math.max(2, Math.round(q.w / s)), ny = Math.max(2, Math.round(q.h / s));
+        for (let i = 0; i <= nx; i++) { const x = q.w * i / nx; [0, q.h].forEach(y => { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }); }
+        for (let i = 0; i <= ny; i++) { const y = q.h * i / ny; [0, q.w].forEach(x => { g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); }); }
+        g.globalCompositeOperation = 'source-over'; } },
+    { id: 'sakura', name: '樱花', sw: 'radial-gradient(circle,#f39bb3 25%,#fde8ee 28%)', base: '#fde8ee',
+      paint(g, f) { const q = geo(f), R = rng(hashStr('sakura' + f.id));
+        const flower = (x, y, s, rot) => { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = '#f6a7bd';
+          for (let i = 0; i < 5; i++) { g.rotate(Math.PI * 2 / 5); g.beginPath(); g.ellipse(0, -s * 0.55, s * 0.32, s * 0.5, 0, 0, 7); g.fill(); }
+          g.fillStyle = '#fff3c8'; g.beginPath(); g.arc(0, 0, s * 0.18, 0, 7); g.fill(); g.restore(); };
+        for (let i = 0, n = Math.round(q.w * q.h / 70); i < n; i++) { if (R() < .55) flower(R() * q.w, R() * q.h, 1.2 + R() * 1.6, R() * 6); else { g.save(); g.translate(R() * q.w, R() * q.h); g.rotate(R() * 6); g.fillStyle = '#f9c3d1'; g.beginPath(); g.ellipse(0, 0, 0.5, 0.9, 0, 0, 7); g.fill(); g.restore(); } }
+        const fs = Math.min(q.bm * 0.3, 6); flower(q.land ? q.w - q.x - fs * 1.4 : q.w - q.x - fs, q.by + q.bm * 0.5, fs, 0.3); flower(q.land ? q.w - q.x - fs * 2.9 : q.w - q.x - fs * 2.4, q.by + q.bm * 0.62, fs * 0.65, 1.1); } },
+    { id: 'sky', name: '天空', sw: 'linear-gradient(#8cc6f0,#e9f5ff)', base: '#bfe1f7',
+      paint(g, f) { const q = geo(f), R = rng(hashStr('sky' + f.id)); const lg = g.createLinearGradient(0, 0, 0, q.h);
+        lg.addColorStop(0, '#86c3ef'); lg.addColorStop(1, '#e8f5ff'); g.fillStyle = lg; g.fillRect(0, 0, q.w, q.h);
+        const cloud = (x, y, s) => { g.fillStyle = 'rgba(120,160,200,.25)'; [[0, .4, .55], [.6, .25, .7], [1.3, .45, .5]].forEach(c => { g.beginPath(); g.arc(x + c[0] * s, y + c[1] * s + .5, c[2] * s, 0, 7); g.fill(); });
+          g.fillStyle = '#fff'; [[0, .4, .55], [.6, .25, .7], [1.3, .45, .5], [.65, .7, .45]].forEach(c => { g.beginPath(); g.arc(x + c[0] * s, y + c[1] * s, c[2] * s, 0, 7); g.fill(); }); };
+        for (let i = 0, n = Math.max(3, Math.round(q.w * q.h / 900)); i < n; i++) cloud(R() * q.w - 3, R() * q.h - 3, 2.5 + R() * 2.5);
+        const cs = Math.min(q.bm * 0.3, 5.5); cloud(q.land ? q.w - q.x - cs * 3 : q.w / 2 - cs * 0.9, q.by + q.bm * 0.35, cs); } },
+    { id: 'leaves', name: '叶影', base: '#eef1e6',
+      paint(g, f) { const q = geo(f), R = rng(hashStr('leaves' + f.id)), C = ['#8fae86', '#6f9a72', '#a9c49a', '#5f8a6a', '#b9cfa6'];
+        const leaf = (x, y, l, a, col) => { g.save(); g.translate(x, y); g.rotate(a); g.fillStyle = col;
+          g.beginPath(); g.moveTo(0, 0); g.quadraticCurveTo(l * 0.5, -l * 0.32, l, 0); g.quadraticCurveTo(l * 0.5, l * 0.32, 0, 0); g.fill();
+          g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 0.1; g.beginPath(); g.moveTo(l * 0.05, 0); g.lineTo(l * 0.9, 0); g.stroke(); g.restore(); };
+        const n = Math.round((q.w + q.h) * 0.9);
+        for (let i = 0; i < n; i++) {   // sprigs grow in from the edges, thicker along the bottom margin
+          const side = R(), u = R(); let x, y, a;
+          if (side < 0.45) { x = u * q.w; y = q.h - R() * q.bm * 0.9; a = -Math.PI / 2 + (R() - .5) * 2.2; }
+          else if (side < 0.62) { x = u * q.w; y = R() * q.y; a = Math.PI / 2 + (R() - .5) * 2.2; }
+          else if (side < 0.81) { x = R() * q.x; y = u * q.h; a = (R() - .5) * 2.2; }
+          else { x = q.w - R() * q.x; y = u * q.h; a = Math.PI + (R() - .5) * 2.2; }
+          leaf(x, y, 1.8 + R() * 2.6, a, C[Math.floor(R() * C.length)]); } } },
+    { id: 'daisy', name: '雏菊', base: '#f3efe3',
+      paint(g, f) { const q = geo(f), R = rng(hashStr('daisy' + f.id));
+        const daisy = (x, y, r) => { g.save(); g.translate(x, y);
+          for (let i = 0; i < 14; i++) { g.rotate(Math.PI * 2 / 14); g.beginPath(); g.ellipse(0, -r * 0.58, r * 0.16, r * 0.46, 0, 0, 7); g.fillStyle = '#fffdf8'; g.fill(); g.strokeStyle = 'rgba(120,110,90,.18)'; g.lineWidth = 0.08; g.stroke(); }
+          g.beginPath(); g.arc(0, 0, r * 0.24, 0, 7); g.fillStyle = '#efb93f'; g.fill();
+          g.fillStyle = 'rgba(170,110,30,.5)'; for (let i = 0; i < 6; i++) { g.beginPath(); g.arc((R() - .5) * r * 0.3, (R() - .5) * r * 0.3, r * 0.03, 0, 7); g.fill(); }
+          g.restore(); };
+        const stem = (x, y, l, a) => { g.strokeStyle = '#86a77a'; g.lineWidth = 0.22; g.beginPath(); g.moveTo(x, y); g.quadraticCurveTo(x + Math.cos(a) * l * 0.5 + 1, y + Math.sin(a) * l * 0.5, x + Math.cos(a) * l, y + Math.sin(a) * l); g.stroke(); };
+        const r0 = Math.min(q.bm * 0.38, 7);
+        // a cluster in the bottom margin, placed by the film's shape
+        const cx = q.land ? q.w - q.x - r0 * 2.2 : q.w - q.x - r0 * 1.4, cy = q.by + q.bm * 0.55;
+        stem(cx, cy, r0 * 2.5, Math.PI / 2); stem(cx - r0 * 1.7, cy + r0 * 0.4, r0 * 2, Math.PI / 2 + 0.3);
+        daisy(cx, cy, r0); daisy(cx - r0 * 1.7, cy + r0 * 0.4, r0 * 0.7); if (q.land || q.w > 70) daisy(cx + r0 * 1.5, cy + r0 * 0.6, r0 * 0.55);
+        daisy(q.x + r0 * 0.9, q.by + q.bm * 0.62, r0 * 0.62); daisy(q.x + r0 * 2.0, q.by + q.bm * 0.8, r0 * 0.42);
+        for (let i = 0, n = Math.round((q.w + q.h) / 5); i < n; i++) { const e = R(); const x = e < .5 ? R() * q.w : (R() < .5 ? R() * q.x : q.w - R() * q.x), y = e < .5 ? R() * q.y : R() * q.h;
+          daisy(x, y, 0.9 + R() * 0.9); } } },
     { id: 'comic', name: '漫画', sw: 'radial-gradient(circle,#e83b5d 30%,#ffe45c 32%)', base: '#fff6cf',
       paint(g, f) { const q = geo(f);
         g.fillStyle = '#ffe45c'; g.fillRect(0, 0, q.w, q.h);
@@ -382,32 +462,13 @@
         const sx = q.land ? q.w - q.x - 8 : q.w - 5.5, sy = q.land ? q.by + q.bm / 2 : q.by + q.bm * 0.7, sr = Math.min(q.bm * 0.4, 7);
         star(g, sx, sy, sr, 10, 0.62); g.fillStyle = '#e83b5d'; g.fill(); g.stroke();
         g.fillStyle = '#fff'; g.font = font(sr * 0.55, '900'); g.fillText('POP', sx, sy + 0.2); g.textBaseline = 'alphabetic'; } },
-    { id: 'confetti', name: '彩纸屑', sw: 'radial-gradient(circle at 30% 30%,#e94f6a 18%,transparent 20%),radial-gradient(circle at 70% 60%,#3a8ee6 18%,#fbfaf6 20%)', base: '#fbfaf6',
+    { id: 'confetti', name: '彩屑', sw: 'radial-gradient(circle at 30% 30%,#e94f6a 18%,transparent 20%),radial-gradient(circle at 70% 60%,#3a8ee6 18%,#fbfaf6 20%)', base: '#fbfaf6',
       paint(g, f) { const q = geo(f), R = rng(hashStr('confetti' + f.id)), C = ['#e94f6a', '#f6b73c', '#3a8ee6', '#4cc38a', '#9b6be0', '#ff8a3d'];
         const n = Math.round(q.w * q.h / 22);
         for (let i = 0; i < n; i++) { const x = R() * q.w, y = R() * q.h, s = 0.6 + R() * 1.3; g.save(); g.translate(x, y); g.rotate(R() * 6.3); g.fillStyle = C[i % C.length];
           const t = R(); if (t < .45) g.fillRect(-s, -s * 0.35, s * 2, s * 0.7); else if (t < .8) { g.beginPath(); g.arc(0, 0, s * 0.55, 0, 7); g.fill(); }
           else { g.strokeStyle = C[i % C.length]; g.lineWidth = 0.35; g.beginPath(); for (let k2 = 0; k2 < 6; k2++) g.lineTo(k2 * s * 0.5 - s, Math.sin(k2 * 1.6) * s * 0.35); g.stroke(); }
           g.restore(); } } },
-    { id: 'stripes', name: '糖果条纹', sw: 'repeating-linear-gradient(135deg,#f6a9be 0 4px,#fff 4px 8px)', base: '#fff',
-      paint(g, f) { const q = geo(f); g.save(); g.translate(q.w / 2, q.h / 2); g.rotate(q.land ? -Math.PI / 5 : -Math.PI / 3.4);
-        const C = ['#f6a9be', '#fff7f9', '#a9d8f6', '#fff7f9'];
-        for (let i = -50, n = 0; i < 50; i++, n++) { g.fillStyle = C[n % 4]; g.fillRect(i * 2.2, -200, 2.2, 400); } g.restore(); } },
-    { id: 'stars', name: '星空', sw: 'radial-gradient(circle,#ffd86b 15%,#1b2050 18%)', base: '#1b2050', dark: true,
-      paint(g, f) { const q = geo(f), R = rng(hashStr('stars' + f.id)); const lg = g.createLinearGradient(0, 0, q.w * 0.3, q.h);
-        lg.addColorStop(0, '#11163d'); lg.addColorStop(1, '#3b2a6b'); g.fillStyle = lg; g.fillRect(0, 0, q.w, q.h);
-        for (let i = 0, n = Math.round(q.w * q.h / 9); i < n; i++) { g.fillStyle = 'rgba(255,255,255,' + (0.3 + R() * 0.6).toFixed(2) + ')'; g.beginPath(); g.arc(R() * q.w, R() * q.h, 0.12 + R() * 0.22, 0, 7); g.fill(); }
-        for (let i = 0, n = Math.round(q.w * q.h / 120); i < n; i++) { star(g, R() * q.w, R() * q.h, 0.7 + R() * 0.9, 4, 0.32); g.fillStyle = R() < .5 ? '#ffd86b' : '#ffffff'; g.fill(); }
-        const big = Math.min(q.bm * 0.32, 6); star(g, q.w - q.x - big * 1.4, q.by + q.bm * 0.5, big, 5, 0.45); g.fillStyle = '#ffd86b'; g.fill();
-        g.beginPath(); g.arc(q.x + big * 1.3, q.by + q.bm * 0.48, big * 0.85, 0, 7); g.fillStyle = '#ffeec2'; g.fill();
-        g.beginPath(); g.arc(q.x + big * 1.75, q.by + q.bm * 0.4, big * 0.75, 0, 7); g.fillStyle = '#1e2252'; g.fill(); } },
-    { id: 'sky', name: '天空', sw: 'linear-gradient(#8cc6f0,#e9f5ff)', base: '#bfe1f7',
-      paint(g, f) { const q = geo(f), R = rng(hashStr('sky' + f.id)); const lg = g.createLinearGradient(0, 0, 0, q.h);
-        lg.addColorStop(0, '#86c3ef'); lg.addColorStop(1, '#e8f5ff'); g.fillStyle = lg; g.fillRect(0, 0, q.w, q.h);
-        const cloud = (x, y, s) => { g.fillStyle = 'rgba(120,160,200,.25)'; [[0, .4, .55], [.6, .25, .7], [1.3, .45, .5]].forEach(c => { g.beginPath(); g.arc(x + c[0] * s, y + c[1] * s + .5, c[2] * s, 0, 7); g.fill(); });
-          g.fillStyle = '#fff'; [[0, .4, .55], [.6, .25, .7], [1.3, .45, .5], [.65, .7, .45]].forEach(c => { g.beginPath(); g.arc(x + c[0] * s, y + c[1] * s, c[2] * s, 0, 7); g.fill(); }); };
-        for (let i = 0, n = Math.max(3, Math.round(q.w * q.h / 900)); i < n; i++) cloud(R() * q.w - 3, R() * q.h - 3, 2.5 + R() * 2.5);
-        const cs = Math.min(q.bm * 0.3, 5.5); cloud(q.land ? q.w - q.x - cs * 3 : q.w / 2 - cs * 0.9, q.by + q.bm * 0.35, cs); } },
     { id: 'contact', name: '底片', sw: 'repeating-linear-gradient(90deg,#111 0 5px,#e9e3d0 5px 7px)', base: '#151515', dark: true,
       paint(g, f) { const q = geo(f); g.fillStyle = '#151515'; g.fillRect(0, 0, q.w, q.h);
         const hole = (x, y, w, h) => { g.fillStyle = '#e9e3d0'; g.beginPath(); g.roundRect ? g.roundRect(x, y, w, h, 0.35) : g.rect(x, y, w, h); g.fill(); };
@@ -416,26 +477,18 @@
         g.fillStyle = '#f39a3a'; g.font = font(Math.min(q.bm * 0.16, 2.6), '700'); g.textAlign = 'left';
         g.fillText('◂ 12   12A', q.x + 1, q.by + q.bm * 0.42); g.textAlign = 'right'; g.fillText('INSTANT 800', q.w - q.x - 1, q.by + q.bm * 0.42);
         g.textAlign = 'center'; g.fillStyle = 'rgba(243,154,58,.75)'; g.font = font(Math.min(q.bm * 0.12, 2), '600'); g.fillText('▸ 13      ▸ 13A      ▸ 14', q.w / 2, q.by + q.bm * 0.78); } },
-    { id: 'gingham', name: '格纹', sw: 'repeating-linear-gradient(0deg,rgba(214,64,69,.4) 0 4px,transparent 4px 8px),repeating-linear-gradient(90deg,rgba(214,64,69,.4) 0 4px,#fff 4px 8px)', base: '#fdfbf7',
-      paint(g, f) { const q = geo(f), s = 2.6; g.fillStyle = 'rgba(214,64,69,.33)';
-        for (let x = 0; x < q.w; x += s * 2) g.fillRect(x, 0, s, q.h); for (let y = 0; y < q.h; y += s * 2) g.fillRect(0, y, q.w, s); } },
-    { id: 'sakura', name: '樱花', sw: 'radial-gradient(circle,#f39bb3 25%,#fde8ee 28%)', base: '#fde8ee',
-      paint(g, f) { const q = geo(f), R = rng(hashStr('sakura' + f.id));
-        const flower = (x, y, s, rot) => { g.save(); g.translate(x, y); g.rotate(rot); g.fillStyle = '#f6a7bd';
-          for (let i = 0; i < 5; i++) { g.rotate(Math.PI * 2 / 5); g.beginPath(); g.ellipse(0, -s * 0.55, s * 0.32, s * 0.5, 0, 0, 7); g.fill(); }
-          g.fillStyle = '#fff3c8'; g.beginPath(); g.arc(0, 0, s * 0.18, 0, 7); g.fill(); g.restore(); };
-        for (let i = 0, n = Math.round(q.w * q.h / 70); i < n; i++) { if (R() < .55) flower(R() * q.w, R() * q.h, 1.2 + R() * 1.6, R() * 6); else { g.save(); g.translate(R() * q.w, R() * q.h); g.rotate(R() * 6); g.fillStyle = '#f9c3d1'; g.beginPath(); g.ellipse(0, 0, 0.5, 0.9, 0, 0, 7); g.fill(); g.restore(); } }
-        const fs = Math.min(q.bm * 0.3, 6); flower(q.land ? q.w - q.x - fs * 1.4 : q.w - q.x - fs, q.by + q.bm * 0.5, fs, 0.3); flower(q.land ? q.w - q.x - fs * 2.9 : q.w - q.x - fs * 2.4, q.by + q.bm * 0.62, fs * 0.65, 1.1); } },
-    { id: 'retro', name: '复古条', sw: 'linear-gradient(#f5ecd8 55%,#d9682b 55% 70%,#e9a23b 70% 85%,#7a4a2a 85%)', base: '#f5ecd8',
+    { id: 'retro', name: '复古', sw: 'linear-gradient(#f5ecd8 55%,#d9682b 55% 70%,#e9a23b 70% 85%,#7a4a2a 85%)', base: '#f5ecd8',
       paint(g, f) { const q = geo(f), C = ['#7a4a2a', '#d9682b', '#e9a23b', '#e7c35a'], bw = Math.min(q.bm * 0.11, 1.6), y0 = q.by + q.bm * 0.32;
         C.forEach((c, i) => { g.fillStyle = c; const y = y0 + i * bw * 1.15;
           g.beginPath(); g.moveTo(0, y); g.lineTo(q.w * (q.land ? 0.7 : 0.55), y); g.arcTo(q.w * (q.land ? 0.78 : 0.68), y, q.w * (q.land ? 0.78 : 0.68), y + bw, bw * 3);
           g.lineTo(q.w * (q.land ? 0.78 : 0.68) + bw * 0.01, q.h); g.lineTo(q.w * (q.land ? 0.78 : 0.68) - bw, q.h); g.lineTo(q.w * (q.land ? 0.78 : 0.68) - bw, y + bw * 2.2);
-          g.arcTo(q.w * (q.land ? 0.78 : 0.68) - bw, y + bw, q.w * (q.land ? 0.7 : 0.55), y + bw, bw * 1.5); g.lineTo(0, y + bw); g.closePath(); g.fill(); }); } },
-    { id: 'silver', name: '金属银', sw: 'linear-gradient(135deg,#a9adb3,#eceef1,#b4b8be)', base: '#c4c7cc', metal: true,
-      paint(g, f, K) { const q = geo(f), lg = g.createLinearGradient(0, 0, q.w * 0.8, q.h);
-        [[0, '#a7abb1'], [.2, '#e8eaed'], [.42, '#b5b9bf'], [.66, '#e1e4e8'], [1, '#9fa3a9']].forEach(([s, c]) => lg.addColorStop(s, c)); g.fillStyle = lg; g.fillRect(0, 0, q.w, q.h);
-        const R = rng(7); for (let y = 0; y < q.h; y += 0.09) { g.fillStyle = 'rgba(255,255,255,' + (R() * 0.07).toFixed(3) + ')'; g.fillRect(0, y, q.w, 0.045); } } }
+          g.arcTo(q.w * (q.land ? 0.78 : 0.68) - bw, y + bw, q.w * (q.land ? 0.7 : 0.55), y + bw, bw * 1.5); g.lineTo(0, y + bw); g.closePath(); g.fill(); }); } }
+  ];
+  const SERIES = [
+    { name: '经典', ids: ['white', 'black', 'cream', 'silver'] },
+    { name: '信笺', ids: ['airmail', 'kraft', 'ruled', 'stamp'] },
+    { name: '自然', ids: ['sakura', 'sky', 'leaves', 'daisy'] },
+    { name: '趣味', ids: ['comic', 'confetti', 'contact', 'retro'] }
   ];
   const styleOf = () => STYLES.find(x => x.id === state.frame) || STYLES[0];
   const camOf = () => CAMERAS.find(c => c.id === state.camId) || CAMERAS[0];
@@ -458,7 +511,7 @@ precision highp float;
 varying vec2 v;
 uniform sampler2D T;
 uniform vec4 crop; uniform float mirror, aspect;
-uniform float gain, expo, warm, tint, curve, sat, vig, edge, grain, flash, strength, seed;
+uniform float gain, expo, warm, tint, curve, sat, hd, vig, edge, grain, flash, strength, seed;
 uniform vec3 blk, wht, edgeCol;
 const vec3 LW = vec3(0.299, 0.587, 0.114);
 vec2 S(vec2 uv){ uv = clamp(uv, 0.0, 1.0); if (mirror > 0.5) uv.x = 1.0 - uv.x; return crop.xy + uv * crop.zw; }
@@ -493,9 +546,10 @@ void main(){
   lin = mix(lin, 0.55 + 0.45 * (1.0 - exp(-(lin - 0.55) / 0.45)), step(0.55, lin));
   vec3 c = l2s(lin) * expo;
   c *= vec3(1.0 + warm, 1.0 + tint, 1.0 - warm);
-  // chroma only; hue is left exactly as the camera saw it
+  // chroma only; hue is left exactly as the camera saw it. Film also loses colour in the highlights (hd).
   vec3 o = toLab(s2l(clamp(c, 0.0, 1.0)));
-  o.yz *= sat;
+  float hl = smoothstep(0.62, 0.95, o.x);
+  o.yz *= sat * (1.0 - hd * hl);
   c = l2s(fromLab(o));
   // gentle S-curve, then the camera's black and white point
   c = sCurve(c, curve + flash * 0.35);
@@ -511,8 +565,10 @@ void main(){
   float n = vn(uv * vec2(aspect, 1.0) * 14.0 + seed * 17.0) * 0.6 + vn(uv * vec2(aspect, 1.0) * 41.0 - seed * 9.0) * 0.4;
   float em = 1.0 - smoothstep(0.0, 0.018 + 0.05 * n * n, ed);
   c = mix(c, c * edgeCol, em * edge);
-  // grain (instax) or a whisper of dither (polaroid has almost none)
-  c += (h21(gl_FragCoord.xy + seed * 91.0) - 0.5) * grain;
+  // fine film grain, strongest in the midtones, a little clumped so it reads as grain rather than digital noise
+  vec2 gp = gl_FragCoord.xy + seed * 91.0;
+  float gn = h21(gp) + h21(gp + vec2(1.0, 0.0)) + h21(gp + vec2(0.0, 1.0)) - 1.5;
+  c += gn * 2.0 * grain * clamp(1.0 - abs(l - 0.5) * 1.4, 0.25, 1.0);
   c = mix(orig, c, strength);
   gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
 }`;
@@ -523,7 +579,7 @@ void main(){
   const buf = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 0,1, 1,0, 1,1]), gl.STATIC_DRAW);
   const ap = gl.getAttribLocation(prog, 'p'); gl.enableVertexAttribArray(ap); gl.vertexAttribPointer(ap, 2, gl.FLOAT, false, 0, 0);
-  const U = {}; ['T','crop','mirror','aspect','gain','expo','warm','tint','curve','sat','vig','edge','grain','flash','strength','seed','blk','wht','edgeCol']
+  const U = {}; ['T','crop','mirror','aspect','gain','expo','warm','tint','curve','sat','hd','vig','edge','grain','flash','strength','seed','blk','wht','edgeCol']
     .forEach(n => U[n] = gl.getUniformLocation(prog, n));
   const tex = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -562,7 +618,7 @@ void main(){
         const i = (y * AE_N + x) * 4, w = 1.6 - Math.hypot(x - 11.5, y - 11.5) / 16;
         sum += (0.2126 * LIN[d[i]] + 0.7152 * LIN[d[i + 1]] + 0.0722 * LIN[d[i + 2]]) * w; ws += w;
       }
-      return Math.min(3, Math.max(0.6, AE_TARGET / Math.max(sum / ws, 0.004)));
+      return Math.min(2.2, Math.max(0.92, AE_TARGET / Math.max(sum / ws, 0.004)));   // lifts dim scenes, never dulls a bright one
     } catch (e) { return aeGain; }
   }
   // 35 mm equivalent focal length of what ends up on the print (lens, crop to the film shape, digital zoom)
@@ -587,7 +643,7 @@ void main(){
     gl.uniform1f(U.gain, aeGain * Math.pow(2, state.ev));
     gl.uniform1f(U.warm, F.warm + (o.warm || 0) + state.temp * 0.06);
     gl.uniform1f(U.tint, F.tint);
-    gl.uniform1f(U.curve, F.curve); gl.uniform1f(U.sat, F.sat);
+    gl.uniform1f(U.curve, F.curve); gl.uniform1f(U.sat, F.sat); gl.uniform1f(U.hd, F.hd);
     gl.uniform3fv(U.blk, F.blk); gl.uniform3fv(U.wht, F.wht);
     gl.uniform1f(U.vig, F.vig); gl.uniform1f(U.edge, F.edge); gl.uniform1f(U.grain, F.grain);
     gl.uniform1f(U.flash, state.flash ? 1 : 0); gl.uniform1f(U.strength, state.strength); gl.uniform1f(U.seed, o.seed || 0.37);
@@ -632,7 +688,7 @@ void main(){
     CAMERAS.forEach(cam => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'fmt'; b.dataset.id = cam.id; b.title = cam.name;
       b.innerHTML = '<span class="cam">' + cam.icon + '</span><span class="nm">' + cam.short + '</span><span class="rt">' + FMT[cam.fmt].name + '</span>';
-      b.addEventListener('click', () => { state.camId = cam.id; state.fmt = FMT[cam.fmt]; store.set('cam', cam.id); state.panX = state.panY = 0; sync(); layout(); });
+      b.addEventListener('click', () => { state.camId = cam.id; state.fmt = FMT[cam.fmt]; store.set('cam', cam.id); state.panX = state.panY = 0; buildStyleChips(); sync(); layout(); });
       $('formats').appendChild(b);
     });
   }
@@ -647,7 +703,7 @@ void main(){
     $('card').classList.toggle('hand-marker', state.font === 'Zhi Mang Xing');
     $('capPreview').textContent = state.caption;
     $('fontRow').hidden = !state.caption.trim();
-    $('frameSeg').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === fr.id)));
+    document.querySelectorAll('.fchip[data-v]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === fr.id)));
     $('win').classList.toggle('grid', state.grid);
     $('gridBtn').setAttribute('aria-pressed', String(state.grid));
     updateBadge();
@@ -771,12 +827,40 @@ void main(){
       $(id).querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); sync(); });
   }
   seg('fontSeg', 'font');
-  STYLES.forEach(fr => {
-    const b = document.createElement('button'); b.type = 'button'; b.dataset.v = fr.id;
-    b.innerHTML = '<i class="sw" style="background:' + fr.sw + (fr.round ? ';box-shadow:inset 0 0 0 3px ' + fr.base + ';background:#7a8fa6' : '') + '"></i>' + fr.name;
-    b.addEventListener('click', () => { state.frame = fr.id; store.set('frame', fr.id); sync(); layout(); });
-    $('frameSeg').appendChild(b);
-  });
+  // ---------- paper picker: five at a glance, the rest in series behind an expand button ----------
+  const thumbCache = {};
+  function styleThumb(st) {   // the lower part of the card, where most editions put their decoration
+    const f = state.fmt, key = f.id + '/' + st.id; if (thumbCache[key]) return thumbCache[key];
+    const K = 3, W = Math.round(f.w * K), H = Math.round(f.h * K), c = document.createElement('canvas'); c.width = W; c.height = H;
+    paintFrame(c.getContext('2d'), W, H, f, st, K);
+    const t = document.createElement('canvas'); t.width = 80; t.height = 56; const sh = Math.min(H, W * 56 / 80);
+    t.getContext('2d').drawImage(c, 0, H - sh, W, sh, 0, 0, 80, 56);
+    return (thumbCache[key] = t.toDataURL());
+  }
+  function styleChip(st) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'fchip'; b.dataset.v = st.id;
+    b.setAttribute('aria-pressed', String(st.id === state.frame));
+    b.innerHTML = '<i class="th" style="background-image:url(' + styleThumb(st) + ')"></i>' + st.name;
+    b.addEventListener('click', () => { state.frame = st.id; store.set('frame', st.id); buildStyleChips(); sync(); layout(); });
+    return b;
+  }
+  let panelOpen = false;
+  function buildStyleChips() {
+    const row = $('frameSeg'), panel = $('framePanel'), all = SERIES.flatMap(s => s.ids);
+    const show = all.slice(0, 5); if (!show.includes(state.frame)) show[4] = state.frame;
+    row.innerHTML = ''; show.forEach(id => row.appendChild(styleChip(STYLES.find(s => s.id === id))));
+    const more = document.createElement('button'); more.type = 'button'; more.className = 'fchip more';
+    more.setAttribute('aria-expanded', String(panelOpen));
+    more.innerHTML = '<i class="th"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></i>' + (panelOpen ? '收起' : '展开');
+    more.addEventListener('click', () => { panelOpen = !panelOpen; buildStyleChips(); });
+    row.appendChild(more);
+    panel.hidden = !panelOpen; panel.innerHTML = '';
+    if (panelOpen) SERIES.forEach(s => {
+      const h = document.createElement('h4'); h.textContent = s.name; panel.appendChild(h);
+      const g = document.createElement('div'); g.className = 'fchips'; s.ids.forEach(id => g.appendChild(styleChip(STYLES.find(x => x.id === id)))); panel.appendChild(g);
+    });
+  }
+  if (!STYLES.some(s => s.id === state.frame)) state.frame = 'white';
 
   // ---------- shoot & develop ----------
   const paperTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const d = g.createImageData(256, 256);
@@ -830,6 +914,7 @@ void main(){
       g.fillStyle = lit; g.fillRect(x, y + h, w + t, t); g.fillRect(x + w, y, t, h);
       g.fillStyle = shade; g.fillRect(x - t, y - t, w + t, t); g.fillRect(x - t, y, t, h);
     }
+    if (st.post) { g.save(); g.scale(K, K); st.post(g, f, K); g.restore(); }   // e.g. stamp perforations, cut last
     g.restore();
   }
   // inner shadow the lip casts onto the picture
@@ -886,6 +971,7 @@ void main(){
     Object.assign(dv.style, { left: (f.side / f.w * 100) + '%', top: (f.top / f.h * 100) + '%', width: (f.iw / f.w * 100) + '%', height: (f.ih / f.h * 100) + '%', background: D.bg, borderRadius: fr.round ? '50%' : '0' });
     if (fr.round) { const cw = roundWin(f); Object.assign(dv.style, { left: ((cw.cx - cw.r) / f.w * 100) + '%', top: ((cw.cy - cw.r) / f.h * 100) + '%', width: (cw.r * 2 / f.w * 100) + '%', height: (cw.r * 2 / f.h * 100) + '%' }); }
     dv.style.webkitBackdropFilter = D.fx; dv.style.backdropFilter = D.fx;
+    devSec = camOf().brand === 'instax' ? 3 : 5; dv.style.transitionDuration = devSec + 's';
     dv.classList.remove('go'); void dv.offsetWidth;
     $('toast').textContent = ''; $('sheetTip').textContent = '出片中……';
     tilt.b0 = null; tilt.tx = tilt.ty = tilt.rx = tilt.ry = 0;
@@ -911,13 +997,13 @@ void main(){
     a.onfinish = develop;
     setTimeout(() => { if (a.playState !== 'finished') a.cancel(); develop(); }, 3200);   // never get stuck half out
   }
-  let devTimer = 0;
+  let devTimer = 0, devSec = 5;
   function develop() {
     if ($('develop').classList.contains('go')) return;
     $('develop').classList.add('go');
-    $('sheetTip').textContent = '显影中，大约 10 秒。可以拖动相纸，或者倾斜手机看看。';
+    $('sheetTip').textContent = '显影中，大约 ' + devSec + ' 秒。可以拖动相纸，或者倾斜手机看看。';
     clearTimeout(devTimer);
-    devTimer = setTimeout(() => { if (!$('sheet').hidden) $('sheetTip').textContent = '点“存到相册”，在弹出的菜单里选“存储图像”。也可以长按图片保存。'; }, 10500);
+    devTimer = setTimeout(() => { if (!$('sheet').hidden) $('sheetTip').textContent = '点“存到相册”，在弹出的菜单里选“存储图像”。也可以长按图片保存。'; }, devSec * 1000 + 400);
   }
 
   // ---------- the print as an object: tilt it with a finger or by tilting the phone ----------
@@ -990,7 +1076,7 @@ void main(){
     return c;
   }
 
-  buildCams(); sync(); layout(); aeGain = meter(still);
+  buildCams(); buildStyleChips(); sync(); layout(); aeGain = meter(still);
   if (location.hash === '#debug') window.__xzj = { paintFrame, STYLES, FMT, CAMERAS };
   window.addEventListener('resize', layout);
   requestAnimationFrame(loop);
